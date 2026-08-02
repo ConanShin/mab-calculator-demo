@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Point Optimizer Console — 로그인</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0f1a'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ff6a4d'/%3E%3C/svg%3E">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04060c; --surface:#0b111c; --hair:#26314a;
+  --ink:#eef1f7; --ink-2:#9ba6b8; --ink-3:#5d6a82;
+  --accent:#ff6a4d; --accent-2:#f5a54b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh; background:var(--bg); color:var(--ink);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  display:flex; align-items:center; justify-content:center;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none;
+  background-image:
+    radial-gradient(1px 1px at 22px 34px, rgba(255,255,255,.28), transparent),
+    radial-gradient(1px 1px at 130px 90px, rgba(255,255,255,.16), transparent),
+    radial-gradient(1.5px 1.5px at 200px 180px, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 80px 220px, rgba(255,255,255,.12), transparent),
+    radial-gradient(1px 1px at 260px 60px, rgba(255,255,255,.22), transparent);
+  background-size:300px 300px;
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none;
+  background:radial-gradient(60% 45% at 50% 38%, rgba(255,106,77,.05), transparent 70%);
+}
+.box{width:min(360px,92vw); position:relative; z-index:2; text-align:center}
+.radar{width:76px; height:76px; margin:0 auto 18px; position:relative}
+.radar i{position:absolute; inset:0; border:1px solid rgba(255,106,77,.28); border-radius:50%}
+.radar i:nth-child(2){inset:14px; border-color:rgba(255,106,77,.4)}
+.radar i:nth-child(3){
+  inset:30px; border:none; background:var(--accent); border-radius:50%;
+  box-shadow:0 0 18px rgba(255,106,77,.7); animation:pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(.78)}}
+.eyebrow{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; letter-spacing:.3em; color:var(--ink-3); text-transform:uppercase}
+h1{font-size:22px; font-weight:700; margin:10px 0 26px; letter-spacing:-.01em}
+.card{
+  background:rgba(16,24,42,.85); border:1px solid var(--hair); border-radius:12px;
+  padding:26px 26px 24px; text-align:left; backdrop-filter:blur(8px);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);
+}
+label{
+  display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:9.5px;
+  letter-spacing:.3em; color:var(--ink-3); text-transform:uppercase; margin:14px 0 7px;
+}
+label:first-child{margin-top:0}
+input{
+  width:100%; background:#070b14; border:1px solid var(--hair); border-radius:10px;
+  color:var(--ink); font:inherit; font-size:14px; padding:11px 13px; outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+input:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,106,77,.14)}
+button{
+  width:100%; margin-top:20px; padding:12px; border:none; border-radius:10px; cursor:pointer;
+  background:linear-gradient(135deg,#ff6a4d,#f5a54b); color:#12100c;
+  font:inherit; font-size:14px; font-weight:700; letter-spacing:.14em;
+  transition:filter .2s, transform .1s;
+}
+button:hover{filter:brightness(1.08)}
+button:active{transform:translateY(1px)}
+.err{display:none; margin-top:12px; font-size:12px; color:#f87171; text-align:center; letter-spacing:.05em}
+.foot{margin-top:18px; font-size:11.5px; color:var(--ink-3); letter-spacing:.04em}
+
+/* ── 떠다니는 별 (레퍼런스 이펙트) ── */
+body::before{animation:starDrift 240s linear infinite}
+.starlayer{
+  position:fixed; inset:-420px 0 0 -420px; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(1.7px 1.7px at 64px 138px, rgba(255,255,255,.4), transparent),
+    radial-gradient(1.3px 1.3px at 250px 40px, rgba(255,255,255,.28), transparent),
+    radial-gradient(2px 2px at 180px 320px, rgba(255,255,255,.22), transparent),
+    radial-gradient(1.2px 1.2px at 350px 210px, rgba(255,255,255,.3), transparent);
+  background-size:420px 420px;
+  animation:starDrift2 150s linear infinite, twinkle 6s ease-in-out infinite;
+}
+@keyframes starDrift{from{background-position:0 0}to{background-position:-300px 300px}}
+@keyframes starDrift2{from{transform:translate(0,0)}to{transform:translate(420px,-420px)}}
+@keyframes twinkle{0%,100%{opacity:.65}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="starlayer"></div>
+<div class="box">
+  <div class="radar"><i></i><i></i><i></i></div>
+  <div class="eyebrow">Point Optimizer</div>
+  <h1>운영 콘솔 <span style="font-size:12px;color:var(--ink-3);font-weight:400">static demo</span></h1>
+  <form class="card" id="f">
+    <label for="id">ID</label>
+    <input id="id" autocomplete="username" autofocus>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <button type="submit">로그인</button>
+    <div class="err" id="err">ID 또는 비밀번호가 올바르지 않습니다</div>
+  </form>
+  <div class="foot">mock 데이터 기반 데모입니다 · 실제 고객 데이터는 포함되어 있지 않습니다</div>
+</div>
+<script>
+document.getElementById("f").onsubmit=e=>{
+  e.preventDefault();
+  if(document.getElementById("id").value==="admin" && document.getElementById("pw").value==="admin"){
+    sessionStorage.setItem("demo_auth","1"); location.href="index.html";
+  }else document.getElementById("err").style.display="block";
+};
+</script>
+</body>
+</html>

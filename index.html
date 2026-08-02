@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Point Optimizer Console — 적정 프로모션 운영 콘솔</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0f1a'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ff6a4d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>if(!sessionStorage.getItem("demo_auth"))location.replace("login.html");</script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+<script src="assets/static_data.js"></script>
+<style>
+:root{
+  /* mab-demo 레퍼런스 토큰: canvas #04060c · panel #0b111c · paper #101725 · hair #26314a · accent #ff6a4d */
+  --bg:#04060c; --surface:#0b111c; --surface-2:#101725;
+  --hair:#26314a; --hair-soft:#1a2338;
+  --ink:#eef1f7; --ink-2:#9ba6b8; --ink-3:#5d6a82;
+  --gold:#ff6a4d; --gold-bright:#ff8a70; --gold-dim:#a84c37;
+  --blue:#60a5fa; --sage:#34d399; --amber:#f5a54b;
+  --serif-latin:"JetBrains Mono",ui-monospace,"SF Mono",monospace;
+  --serif-kr:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--serif-kr); font-weight:400; line-height:1.7;
+  min-height:100vh; overflow-x:hidden;
+}
+body::before{ /* starfield */
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(1px 1px at 22px 34px, rgba(255,255,255,.25), transparent),
+    radial-gradient(1px 1px at 130px 90px, rgba(255,255,255,.14), transparent),
+    radial-gradient(1.5px 1.5px at 210px 184px, rgba(255,255,255,.18), transparent),
+    radial-gradient(1px 1px at 84px 226px, rgba(255,255,255,.1), transparent),
+    radial-gradient(1px 1px at 266px 62px, rgba(255,255,255,.2), transparent);
+  background-size:300px 300px;
+}
+body::after{ /* aurora glow */
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:radial-gradient(55% 38% at 50% 0%, rgba(96,165,250,.06), transparent 70%),
+             radial-gradient(40% 30% at 80% 100%, rgba(255,106,77,.04), transparent 70%);
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 40px 120px; position:relative; z-index:10}
+
+/* ── masthead ── */
+header{padding:34px 0 0; text-align:center}
+.eyebrow{
+  font-family:var(--mono); font-size:10px; letter-spacing:.5em; text-transform:uppercase;
+  color:var(--gold-dim); animation:fade 1.2s .1s both;
+}
+h1{
+  font-family:var(--serif-kr); font-weight:700; font-size:clamp(28px,3.6vw,40px);
+  letter-spacing:-.01em; margin:10px 0 2px; color:var(--ink);
+  animation:fade 1.2s .25s both;
+}
+h1 em{font-style:normal; color:var(--gold)}
+.sub{
+  font-size:13px; color:var(--ink-2); letter-spacing:.14em; animation:fade 1.2s .4s both;
+}
+.rule{
+  width:72px; height:1px; margin:22px auto 0; border:none;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  animation:fade 1.2s .55s both;
+}
+
+/* ── views + floating dock ── */
+main{margin-top:34px}
+.view{display:none}
+.view.active{display:block; animation:rise .55s ease both}
+.duo-grid{display:grid; grid-template-columns:5fr 7fr; gap:28px}
+@media(max-width:900px){.duo-grid{grid-template-columns:1fr}}
+.dock{
+  position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+  display:flex; gap:2px; padding:7px 9px; z-index:60;
+  background:rgba(16,14,12,.82); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+  border:1px solid var(--hair); box-shadow:0 16px 50px rgba(0,0,0,.6);
+  animation:dockup .9s .9s both;
+}
+.dock button{
+  display:flex; align-items:center; gap:9px; background:none; border:none; cursor:pointer;
+  color:var(--ink-3); font-family:var(--serif-kr); font-weight:300; font-size:11.5px;
+  letter-spacing:.2em; padding:10px 18px; transition:all .3s ease;
+}
+.dock button i{font-family:var(--serif-latin); font-style:italic; font-size:13px; color:var(--gold-dim); transition:color .3s}
+.dock button:hover{color:var(--ink)}
+.dock button.active{color:var(--gold-bright); background:rgba(255,106,77,.09)}
+.dock button.active i{color:var(--gold)}
+.dock .sep{width:1px; background:var(--hair-soft); margin:6px 2px}
+@keyframes dockup{from{opacity:0; transform:translate(-50%,18px)}to{opacity:1; transform:translate(-50%,0)}}
+.panel{
+  background:var(--surface); border:1px solid var(--hair-soft);
+  padding:32px 36px 36px; position:relative;
+}
+.view.active .panel{animation:rise .6s ease both}
+.duo-grid .panel:nth-child(2){animation-delay:.12s}
+.numeral{
+  font-family:var(--serif-latin); font-style:italic; font-weight:400;
+  color:var(--gold-dim); font-size:15px; letter-spacing:.3em;
+}
+.panel h2{
+  font-weight:400; font-size:15px; letter-spacing:.3em; margin:6px 0 22px; color:var(--ink);
+}
+.panel h2 small{display:block; font-family:var(--mono); font-size:9px; letter-spacing:.35em; color:var(--ink-3); margin-top:6px; text-transform:uppercase}
+
+/* ── form ── */
+.field{margin-bottom:19px}
+.label{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--ink-3); display:flex; justify-content:space-between; margin-bottom:10px;
+}
+.label b{color:var(--gold); font-weight:400}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  border:1px solid var(--hair); background:transparent; color:var(--ink-2);
+  font-family:var(--serif-kr); font-weight:300; font-size:12.5px; letter-spacing:.06em;
+  padding:7px 14px; cursor:pointer; transition:all .25s ease; user-select:none;
+}
+.chip:hover{border-color:var(--gold-dim); color:var(--ink)}
+.chip.on{border-color:var(--gold); color:var(--gold-bright); background:rgba(255,106,77,.06)}
+input[type=range]{
+  -webkit-appearance:none; width:100%; height:1px; background:var(--hair); outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+  background:var(--bg); border:1px solid var(--gold); cursor:pointer;
+  transition:box-shadow .2s; box-shadow:0 0 0 0 rgba(255,106,77,.25);
+}
+input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(255,106,77,.12)}
+.numin{
+  width:100%; background:transparent; border:none; border-bottom:1px solid var(--hair);
+  color:var(--ink); font-family:var(--serif-latin); font-size:19px; padding:4px 2px;
+  outline:none; transition:border-color .25s;
+}
+.numin:focus{border-color:var(--gold)}
+.duo{display:grid; grid-template-columns:1fr 1fr; gap:22px}
+.presets{display:flex; gap:18px; margin-bottom:22px; border-bottom:1px solid var(--hair-soft); padding-bottom:16px}
+.preset{
+  background:none; border:none; cursor:pointer; color:var(--ink-3);
+  font-family:var(--serif-kr); font-size:12px; letter-spacing:.12em; padding:0;
+  border-bottom:1px solid transparent; transition:all .25s;
+}
+.preset:hover{color:var(--gold-bright); border-bottom-color:var(--gold-dim)}
+.cta{
+  margin-top:22px; width:100%; padding:13px; background:transparent; cursor:pointer;
+  border:1px solid var(--gold); color:var(--gold-bright);
+  font-family:var(--serif-kr); font-weight:400; font-size:13.5px; letter-spacing:.4em; text-indent:.4em;
+  transition:all .35s ease; position:relative; overflow:hidden;
+}
+.cta:hover{background:rgba(255,106,77,.09); letter-spacing:.48em}
+.cta:active{transform:translateY(1px)}
+.cta:disabled{opacity:.4; cursor:wait}
+
+/* ── result ── */
+.result-empty{
+  height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;
+  color:var(--ink-3); font-size:13px; letter-spacing:.15em; gap:14px; min-height:340px;
+}
+.result-empty .orn{font-family:var(--serif-latin); font-size:30px; color:var(--gold-dim); font-style:italic}
+.result-body{display:none}
+.hero{ text-align:center; padding:6px 0 8px }
+.hero .amount{
+  font-family:var(--serif-latin); font-weight:300; font-size:clamp(72px,9vw,112px);
+  line-height:1; color:var(--gold-bright); letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 60px rgba(255,106,77,.18);
+}
+.hero .unit{font-size:.38em; color:var(--gold); letter-spacing:.2em; font-style:italic}
+.hero-rule{
+  width:120px; height:1px; margin:22px auto; border:none;
+  background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);
+  position:relative; overflow:visible;
+}
+.hero-caption{font-size:11.5px; letter-spacing:.28em; color:var(--ink-3); text-transform:none}
+.seal{
+  display:flex; align-items:flex-start; gap:14px; margin-top:32px;
+  border:1px solid var(--hair-soft); background:var(--surface-2); padding:18px 20px;
+}
+.seal .dot{width:7px;height:7px;border-radius:50%;margin-top:7px;flex:none}
+.seal.warn .dot{background:var(--amber); box-shadow:0 0 10px rgba(245,165,75,.5)}
+.seal.ok .dot{background:var(--sage); box-shadow:0 0 10px rgba(52,211,153,.5)}
+.seal.exp .dot{background:var(--blue); box-shadow:0 0 10px rgba(96,165,250,.55)}
+.seal.exp .seal-title{color:var(--blue)}
+.seal-title{font-size:12.5px; letter-spacing:.2em; color:var(--ink)}
+.seal.warn .seal-title{color:var(--amber)}
+.seal.ok .seal-title{color:var(--sage)}
+.seal-reasons{margin-top:8px; font-size:11.5px; color:var(--ink-2); line-height:1.85}
+.seal-reasons li{list-style:none; padding-left:14px; position:relative}
+.seal-reasons li::before{content:"·"; position:absolute; left:0; color:var(--gold-dim)}
+.metrics{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--hair-soft); margin-top:26px; border:1px solid var(--hair-soft)}
+.metric{background:var(--surface); padding:18px 22px; text-align:center}
+.metric .k{font-family:var(--mono); font-size:9px; letter-spacing:.3em; color:var(--ink-3); text-transform:uppercase}
+.metric .v{font-family:var(--serif-latin); font-size:30px; font-weight:400; margin-top:6px; font-variant-numeric:tabular-nums}
+.metric .v em{font-size:.5em; font-style:italic; color:var(--ink-2)}
+.badge-explore{
+  display:inline-block; margin-top:6px; font-family:var(--mono); font-size:8.5px;
+  letter-spacing:.25em; color:var(--amber); border:1px solid rgba(245,165,75,.35); padding:3px 8px;
+}
+
+/* ── chart ── */
+.chart-head{display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px}
+.assume{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; color:var(--ink-3)}
+.assume b{color:var(--amber); font-weight:400}
+#evchart{width:100%; height:auto; display:block; margin-top:10px}
+.sliders{display:grid; grid-template-columns:1fr 1fr; gap:36px; margin-top:26px; padding-top:24px; border-top:1px solid var(--hair-soft)}
+.tooltip{
+  position:fixed; pointer-events:none; z-index:50; display:none;
+  background:#080d16; border:1px solid var(--hair); padding:10px 14px;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; color:var(--ink-2); line-height:1.9;
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+}
+.tooltip b{color:var(--gold-bright); font-weight:400}
+
+/* ── ledger ── */
+table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11px; letter-spacing:.05em}
+th{
+  text-align:left; font-weight:400; font-size:8.5px; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--ink-3); padding:0 10px 12px; border-bottom:1px solid var(--hair);
+}
+td{padding:11px 10px; border-bottom:1px solid var(--hair-soft); color:var(--ink-2); font-variant-numeric:tabular-nums}
+td.pt{color:var(--gold-bright); font-size:13px}
+tr{transition:background .2s}
+tbody tr:hover{background:rgba(255,106,77,.03)}
+.tag{font-size:8.5px; letter-spacing:.2em; padding:2px 7px; border:1px solid var(--hair)}
+.tag.explore{color:var(--amber); border-color:rgba(245,165,75,.4)}
+.tag.exploit{color:var(--ink-3)}
+.empty-ledger{text-align:center; color:var(--ink-3); font-size:12px; letter-spacing:.2em; padding:30px 0}
+
+/* ── methodology ── */
+.chapter{margin-top:34px; padding-top:26px; border-top:1px solid var(--hair-soft)}
+.chapter:first-of-type{margin-top:6px; padding-top:0; border-top:none}
+.ch-label{font-family:var(--mono); font-size:9px; letter-spacing:.4em; color:var(--gold-dim); text-transform:uppercase}
+.ch-title{font-size:16px; letter-spacing:.2em; color:var(--ink); margin:8px 0 4px}
+.ch-desc{font-size:12.5px; color:var(--ink-2); max-width:720px; line-height:1.9}
+.flow{display:flex; gap:0; margin:24px 0 6px; flex-wrap:wrap}
+.step{
+  flex:1; min-width:150px; border:1px solid var(--hair-soft); background:var(--surface-2);
+  padding:16px 18px; position:relative; margin-right:26px;
+}
+.step:last-child{margin-right:0}
+.step:not(:last-child)::after{
+  content:"→"; position:absolute; right:-22px; top:50%; transform:translateY(-50%);
+  color:var(--gold-dim); font-family:var(--serif-latin); font-size:16px;
+}
+.step .s-n{font-family:var(--serif-latin); font-style:italic; font-size:12px; color:var(--gold-dim)}
+.step .s-t{font-size:12.5px; color:var(--ink); letter-spacing:.06em; margin:4px 0 2px}
+.step .s-d{font-family:var(--mono); font-size:9px; letter-spacing:.05em; color:var(--ink-3); line-height:1.9}
+.step .s-big{font-family:var(--serif-latin); font-size:23px; color:var(--gold-bright); font-variant-numeric:tabular-nums}
+.note{
+  margin-top:16px; padding:13px 16px; border-left:2px solid var(--gold-dim); background:var(--surface-2);
+  font-size:11.5px; color:var(--ink-2); line-height:1.9; max-width:820px;
+}
+.note b{color:var(--gold); font-weight:400}
+.imp{margin-top:18px; max-width:560px}
+.imp-row{display:grid; grid-template-columns:110px 1fr 52px; align-items:center; gap:12px; padding:6px 0}
+.imp-row .l{font-size:11.5px; color:var(--ink-2); letter-spacing:.06em}
+.imp-row .bar{height:3px; background:var(--hair-soft); position:relative}
+.imp-row .bar i{position:absolute; inset:0 auto 0 0; background:var(--gold); width:var(--w)}
+.imp-row .v{font-family:var(--mono); font-size:9.5px; color:var(--ink-3); text-align:right; font-variant-numeric:tabular-nums}
+.vs{display:flex; gap:1px; background:var(--hair-soft); border:1px solid var(--hair-soft); margin-top:20px; max-width:820px}
+.vs>div{flex:1; background:var(--surface-2); padding:16px 18px}
+.vs .v-t{font-size:12px; letter-spacing:.1em; color:var(--ink)}
+.vs .v-a{font-family:var(--serif-latin); font-size:21px; margin-top:4px; color:var(--ink-2); font-variant-numeric:tabular-nums}
+.vs .win .v-t{color:var(--gold-bright)}
+.vs .win .v-a{color:var(--gold-bright)}
+.vs .v-s{font-family:var(--mono); font-size:8.5px; letter-spacing:.15em; color:var(--ink-3); margin-top:4px; text-transform:uppercase}
+.pipeline{margin-top:22px; max-width:820px}
+.p-step{display:flex; gap:18px; position:relative; padding-bottom:22px}
+.p-step::before{
+  content:""; position:absolute; left:14px; top:30px; bottom:0; width:1px;
+  background:linear-gradient(180deg,var(--gold-dim),var(--hair-soft));
+}
+.p-step:last-child::before{display:none}
+.p-dot{
+  flex:none; width:29px; height:29px; border:1px solid var(--gold-dim); border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif-latin); font-style:italic; font-size:12px; color:var(--gold); background:var(--surface);
+  position:relative; z-index:1;
+}
+.p-body .p-t{font-size:13px; color:var(--ink); letter-spacing:.08em}
+.p-body .p-t small{font-family:var(--mono); font-size:8.5px; letter-spacing:.2em; color:var(--gold-dim); margin-left:8px; text-transform:uppercase}
+.p-body .p-d{font-size:11.5px; color:var(--ink-2); line-height:1.85; margin-top:3px; max-width:640px}
+@media(max-width:900px){
+  .flow{flex-direction:column}
+  .step{margin-right:0; margin-bottom:24px}
+  .step:not(:last-child)::after{content:"↓"; right:auto; left:50%; top:auto; bottom:-22px; transform:translateX(-50%)}
+  .vs{flex-direction:column}
+  .imp-row{grid-template-columns:88px 1fr 46px}
+}
+
+/* ── market recon ── */
+.tiers{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--hair-soft); border:1px solid var(--hair-soft); margin-top:22px}
+.tier{background:var(--surface); padding:24px 22px 20px; min-height:230px}
+.tier .t-name{font-size:13px; letter-spacing:.18em; color:var(--ink)}
+.tier .t-sub{font-family:var(--mono); font-size:8.5px; letter-spacing:.28em; color:var(--ink-3); text-transform:uppercase; margin-top:3px}
+.tier .t-min{font-family:var(--serif-latin); font-size:34px; font-weight:400; color:var(--gold-bright); margin:14px 0 2px; font-variant-numeric:tabular-nums}
+.tier .t-min em{font-size:.42em; font-style:italic; color:var(--gold-dim)}
+.tier .t-cap{font-family:var(--mono); font-size:8.5px; letter-spacing:.2em; color:var(--ink-3); text-transform:uppercase; margin-bottom:14px}
+.offer{
+  display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  padding:7px 0; border-top:1px solid var(--hair-soft); font-size:11.5px; color:var(--ink-2);
+}
+.offer .o-brand{color:var(--ink); letter-spacing:.05em; white-space:nowrap}
+.o-net{
+  font-family:var(--mono); font-size:7.5px; letter-spacing:.12em; white-space:nowrap;
+  border:1px solid var(--hair); color:var(--ink-3); padding:2px 5px; flex:none;
+}
+.o-net.skt{color:#c98a8a; border-color:rgba(201,138,138,.35)}
+.o-net.kt{color:#8fa8b8; border-color:rgba(143,168,184,.35)}
+.o-net.lgu{color:#b08fb8; border-color:rgba(176,143,184,.35)}
+.offer .o-spec{font-family:var(--mono); font-size:9px; color:var(--ink-3); letter-spacing:.03em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1}
+.offer .o-eff{font-family:var(--serif-latin); font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap}
+.offer .o-promo{font-family:var(--mono); font-size:8px; color:var(--amber); letter-spacing:.1em; white-space:nowrap}
+.tier.gap{display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap:12px}
+.tier.gap .orn{font-family:var(--serif-latin); font-style:italic; font-size:26px; color:var(--ink-3)}
+.tier.gap .g-t{font-size:12px; letter-spacing:.2em; color:var(--amber)}
+.tier.gap .g-s{font-family:var(--mono); font-size:9px; letter-spacing:.15em; color:var(--ink-3); line-height:2; word-break:keep-all}
+.mkt-foot{
+  margin-top:20px; padding-top:18px; border-top:1px solid var(--hair-soft);
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; color:var(--ink-3);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+}
+.mkt-foot .dates i{color:var(--gold-dim); font-style:normal}
+@media(max-width:900px){.tiers{grid-template-columns:1fr 1fr}}
+
+footer{
+  margin-top:40px; padding-bottom:70px; text-align:center; font-family:var(--mono); font-size:9px;
+  letter-spacing:.3em; color:var(--ink-3); text-transform:uppercase; line-height:2.4;
+  animation:fade 1.2s 1.2s both;
+}
+footer .g{color:var(--gold-dim)}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0; transform:translateY(26px)}to{opacity:1; transform:none}}
+/* ── 반응형 보정 ── */
+.panel.ledger{overflow-x:auto}
+.ledger table{min-width:540px}
+@media(max-width:900px){
+  .wrap{padding:0 20px 150px}
+  .panel{padding:26px 22px 28px}
+  .sliders{grid-template-columns:1fr; gap:24px}
+  header{padding-top:22px}
+  .metrics .v{font-size:24px}
+}
+@media(max-width:620px){
+  .tiers{grid-template-columns:1fr}
+  .duo{grid-template-columns:1fr}
+  .hero .amount{font-size:60px}
+  .sub{font-size:11px; letter-spacing:.08em}
+}
+
+/* ── experiment control ── */
+.expctl{display:grid; grid-template-columns:auto 1fr auto; gap:26px; align-items:center; margin-top:6px}
+.switch{position:relative; width:46px; height:24px; flex:none; cursor:pointer}
+.switch input{opacity:0; width:0; height:0}
+.switch .tr{
+  position:absolute; inset:0; border-radius:999px; background:var(--hair-soft);
+  border:1px solid var(--hair); transition:background .25s;
+}
+.switch .tr::after{
+  content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+  background:var(--ink-3); transition:all .25s;
+}
+.switch input:checked + .tr{background:rgba(96,165,250,.25); border-color:var(--blue)}
+.switch input:checked + .tr::after{left:24px; background:var(--blue); box-shadow:0 0 10px rgba(96,165,250,.6)}
+.exp-range{display:flex; gap:18px; align-items:flex-end; flex-wrap:wrap}
+.exp-range .fld{width:130px}
+.exp-apply{
+  border:1px solid var(--blue); background:transparent; color:var(--blue); cursor:pointer;
+  font:inherit; font-size:12px; letter-spacing:.2em; padding:9px 18px; border-radius:8px;
+  transition:all .25s;
+}
+.exp-apply:hover{background:rgba(96,165,250,.12)}
+.exp-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--hair-soft); border:1px solid var(--hair-soft); border-radius:12px; overflow:hidden; margin-top:20px}
+.exp-stat{background:var(--surface-2); padding:14px 18px; text-align:center}
+.exp-stat .k{font-family:var(--mono); font-size:8.5px; letter-spacing:.25em; color:var(--ink-3); text-transform:uppercase}
+.exp-stat .v{font-family:var(--serif-latin); font-size:22px; font-weight:500; margin-top:5px; font-variant-numeric:tabular-nums}
+.exp-stat .v em{font-size:.55em; font-style:normal; color:var(--ink-2)}
+.exp-note{margin-top:14px; font-size:11.5px; color:var(--ink-2); line-height:1.8}
+.exp-note b{color:var(--blue); font-weight:500}
+@media(max-width:900px){.expctl{grid-template-columns:1fr} .exp-stats{grid-template-columns:1fr 1fr}}
+
+/* ── executive briefing ── */
+.brief-hero{
+  text-align:center; padding:34px 20px 30px; max-width:760px; margin:0 auto;
+}
+.brief-hero .bh-line{font-size:clamp(19px,2.6vw,26px); font-weight:600; line-height:1.65; color:var(--ink)}
+.brief-hero .bh-line b{color:var(--gold-bright); font-weight:700}
+.brief-hero .bh-sub{margin-top:14px; font-size:13px; color:var(--ink-2)}
+.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--hair-soft); border:1px solid var(--hair-soft); border-radius:14px; overflow:hidden; margin:10px 0 34px}
+.kpi{background:var(--surface-2); padding:20px 14px; text-align:center}
+.kpi .v{font-family:var(--serif-latin); font-size:clamp(19px,2.4vw,27px); font-weight:500; color:var(--gold-bright); font-variant-numeric:tabular-nums}
+.kpi .v em{font-size:.55em; font-style:normal; color:var(--ink-2)}
+.kpi .k{margin-top:7px; font-size:11px; color:var(--ink-2); letter-spacing:.05em; line-height:1.6}
+.bflow{display:flex; gap:0; margin:20px 0 8px; flex-wrap:wrap}
+.bstep{
+  flex:1; min-width:150px; position:relative; margin-right:30px;
+  background:var(--surface-2); border:1px solid var(--hair-soft); border-radius:14px;
+  padding:20px 18px 18px; text-align:center;
+}
+.bstep:last-child{margin-right:0}
+.bstep:not(:last-child)::after{
+  content:"→"; position:absolute; right:-25px; top:50%; transform:translateY(-50%);
+  color:var(--gold); font-size:19px; font-weight:700;
+}
+.bstep .bnum{
+  width:30px; height:30px; margin:0 auto 10px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,106,77,.14); color:var(--gold-bright);
+  font-family:var(--serif-latin); font-size:14px; font-weight:600;
+}
+.bstep .bt{font-size:14px; font-weight:600; color:var(--ink); letter-spacing:.02em}
+.bstep .bd{margin-top:7px; font-size:11.5px; color:var(--ink-2); line-height:1.75}
+.bloop{
+  margin:6px 0 30px; padding:12px 18px; border:1px dashed rgba(96,165,250,.45); border-radius:12px;
+  text-align:center; font-size:12.5px; color:var(--blue); letter-spacing:.04em;
+}
+.whys{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px}
+.why{
+  background:var(--surface-2); border:1px solid var(--hair-soft); border-radius:14px;
+  padding:22px 24px;
+}
+.why .wq{font-size:14px; font-weight:700; color:var(--gold-bright); letter-spacing:.02em}
+.why .wa{margin-top:9px; font-size:12.5px; color:var(--ink-2); line-height:1.85}
+.why .wa b{color:var(--ink); font-weight:600}
+.ask{
+  margin-top:30px; border-radius:14px; padding:24px 28px; text-align:center;
+  background:linear-gradient(135deg, rgba(255,106,77,.12), rgba(255,106,77,.04));
+  border:1px solid rgba(255,106,77,.4);
+}
+.ask .at{font-size:12px; letter-spacing:.3em; color:var(--gold); font-family:var(--mono); text-transform:uppercase}
+.ask .ab{margin-top:10px; font-size:16px; font-weight:600; color:var(--ink); line-height:1.7}
+.ask .ab b{color:var(--gold-bright)}
+.ask .as{margin-top:8px; font-size:12px; color:var(--ink-2)}
+@media(max-width:900px){
+  .bflow{flex-direction:column}
+  .bstep{margin-right:0; margin-bottom:26px}
+  .bstep:not(:last-child)::after{content:"↓"; right:auto; left:50%; top:auto; bottom:-24px; transform:translateX(-50%)}
+  .whys{grid-template-columns:1fr}
+  .kpis{grid-template-columns:1fr 1fr}
+}
+
+/* ── console theme (rounded · space navy) ── */
+.panel{border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.28)}
+.metrics,.vs,.tiers{border-radius:12px; overflow:hidden}
+.seal,.step,.note,.tooltip{border-radius:12px}
+.chip{border-radius:8px}
+.cta{
+  border-radius:10px; border:none;
+  background:linear-gradient(135deg,#ff6a4d,#f5a54b); color:#141007; font-weight:700;
+}
+.cta:hover{background:linear-gradient(135deg,#ff8a70,#f5a54b)}
+.dock{border-radius:999px; background:rgba(13,18,32,.85); border-color:var(--hair)}
+.dock button{border-radius:999px}
+.hero .amount{font-weight:500; text-shadow:0 0 60px rgba(255,106,77,.22)}
+.step .s-big,.metric .v,.tier .t-min,.vs .v-a{font-weight:500}
+.o-net{border-radius:5px}
+.o-net.skt{color:#f87171; border-color:rgba(248,113,113,.35)}
+.o-net.kt{color:#7dd3fc; border-color:rgba(125,211,252,.35)}
+.o-net.lgu{color:#c084fc; border-color:rgba(192,132,252,.35)}
+.numeral{font-style:normal; letter-spacing:.35em}
+.preset{font-weight:500}
+.imp-row .bar i{background:var(--blue)}
+.p-dot{background:var(--surface-2)}
+
+/* ── mab-demo 레퍼런스 정합: 타이포 디트래킹 · 아이콘 독 · 라운드 축소 ── */
+.panel{border-radius:12px}
+.metrics,.vs,.tiers,.exp-stats,.kpis{border-radius:10px}
+.seal,.step,.note,.bstep,.why,.ask,.tooltip{border-radius:10px}
+header{padding-top:26px}
+.rule{display:none}
+h1{font-size:clamp(23px,3vw,31px); font-weight:800}
+.eyebrow{letter-spacing:.3em; font-weight:600}
+.sub{letter-spacing:.01em; font-size:13px}
+.panel h2{font-size:19px; font-weight:800; letter-spacing:-.01em}
+.panel h2 small{letter-spacing:.16em; margin-top:5px}
+.numeral{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.16em; color:var(--gold)}
+.label{letter-spacing:.12em; font-weight:600}
+.ch-label{letter-spacing:.2em; font-weight:600}
+.hero-caption{letter-spacing:.08em}
+.seal-title{letter-spacing:.01em; font-weight:700}
+.metric .k,.exp-stat .k{letter-spacing:.14em}
+.cta{letter-spacing:.18em; text-indent:.18em; font-weight:800}
+.cta:hover{letter-spacing:.22em}
+.preset{letter-spacing:.02em; font-weight:600}
+.chip{letter-spacing:.01em; font-weight:500}
+.hero .amount{font-weight:700}
+.metric .v,.exp-stat .v,.kpi .v,.tier .t-min,.step .s-big,.vs .v-a{font-weight:700}
+.bh-line{letter-spacing:-.01em}
+.assume{letter-spacing:.08em}
+footer{letter-spacing:.16em}
+/* 스탯 타일 우상단 도트 — 레퍼런스 디테일 */
+.metric,.kpi,.exp-stat{position:relative}
+.metric::after,.kpi::after,.exp-stat::after{
+  content:""; position:absolute; top:10px; right:10px; width:4px; height:4px;
+  border-radius:50%; background:var(--ink-3); opacity:.55;
+}
+/* 독: 아이콘 원형 버튼 + 툴팁 */
+.dock{gap:6px; padding:8px; background:rgba(6,10,18,.88); border-color:var(--hair-soft)}
+.dock button{
+  width:44px; height:44px; padding:0; display:flex; align-items:center; justify-content:center;
+  color:var(--ink-3); position:relative; letter-spacing:0;
+}
+.dock button svg{width:20px; height:20px; display:block}
+.dock button:hover{color:var(--ink); background:rgba(255,255,255,.05)}
+.dock button.active{color:var(--gold-bright); background:rgba(255,255,255,.08)}
+.dock .sep{margin:9px 4px}
+.dock button::after{
+  content:attr(data-tip); position:absolute; bottom:calc(100% + 11px); left:50%;
+  transform:translateX(-50%) translateY(4px);
+  background:var(--surface); border:1px solid var(--hair); color:var(--ink-2);
+  font-family:var(--mono); font-size:10px; letter-spacing:.06em; font-weight:500;
+  padding:5px 9px; border-radius:7px; white-space:nowrap;
+  opacity:0; pointer-events:none; transition:all .18s ease;
+}
+.dock button:hover::after{opacity:1; transform:translateX(-50%) translateY(0)}
+/* ── 모바일 최종 보정 (가장 마지막에 위치 — 캐스케이드 우선) ── */
+@media(max-width:700px){
+  /* 독: 화면폭을 꽉 채우지 않는 컴팩트 알약 + 안전영역 확보 */
+  .dock{
+    left:50%; right:auto; transform:translateX(-50%);
+    flex-wrap:nowrap; gap:1px; padding:5px 7px;
+    bottom:max(14px, env(safe-area-inset-bottom));
+    animation-name:dockup; max-width:calc(100vw - 24px);
+  }
+  .dock button{width:38px; height:38px}
+  .dock button svg{width:18px; height:18px}
+  .dock .sep{display:block; margin:8px 2px}
+  .dock button::after{display:none}          /* 터치기기 툴팁 비활성 */
+  .dock button:active{background:rgba(255,255,255,.1)}
+  /* 독에 가리지 않도록 하단 여백 */
+  .wrap{padding:0 14px 132px}
+  footer{margin-top:26px; padding-bottom:24px; letter-spacing:.08em; line-height:2}
+  /* 헤더 압축 */
+  header{padding-top:18px}
+  h1{font-size:24px}
+  .eyebrow{font-size:9px; letter-spacing:.24em}
+  .sub{margin-top:4px; line-height:1.6}
+  main{margin-top:22px}
+  /* 패널·타이포 */
+  .panel{padding:22px 16px 24px; border-radius:12px}
+  .panel h2{font-size:17px}
+  .panel h2 small{font-size:8.5px; letter-spacing:.12em}
+  .hero .amount{font-size:clamp(46px,15vw,64px)}
+  .hero .unit{font-size:.32em}
+  .seal{padding:14px 15px; gap:11px}
+  .seal-reasons{font-size:11px}
+  /* 지표 타일: 2열 유지하되 값 축소 */
+  .metrics .v,.exp-stat .v{font-size:19px}
+  .metric,.exp-stat{padding:13px 8px}
+  .metric .k,.exp-stat .k{font-size:7.5px; letter-spacing:.1em}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{padding:15px 10px}
+  .kpi .v{font-size:19px}
+  .kpi .k{font-size:10px; line-height:1.5; word-break:keep-all}
+  /* 실험 운영 컨트롤 세로 스택 */
+  .expctl{grid-template-columns:1fr; gap:16px}
+  .exp-range{gap:14px}
+  .exp-range .fld{width:calc(50% - 7px)}
+  .exp-range .fld:last-child{width:100%}
+  .exp-apply{width:100%}
+  .exp-note{font-size:11px}
+  /* 시장 정찰 카드 */
+  .tier{min-height:0; padding:18px 16px}
+  .tier .t-min{font-size:27px}
+  .offer{flex-wrap:wrap; row-gap:3px}
+  .offer .o-spec{flex-basis:100%; order:3}
+  .mkt-foot{flex-direction:column; gap:6px; font-size:8.5px; letter-spacing:.1em}
+  /* 브리핑 */
+  .brief-hero{padding:22px 4px 24px}
+  .bh-line{font-size:17px; word-break:keep-all}
+  .bh-sub,.seal-reasons li,.why .wa,.exp-note,.bstep .bd,.ch-desc,.p-body .p-d,.note,.ask .as,.kpi .k{word-break:keep-all}
+  footer{word-break:keep-all}
+  .bstep{padding:16px 14px}
+  .why{padding:18px 16px}
+  .why .wa{font-size:12px}
+  .ask{padding:20px 16px}
+  .ask .ab{font-size:14px}
+  /* 방법론 */
+  .step{padding:14px 15px}
+  .vs .v-a{font-size:18px}
+  .p-body .p-d{font-size:11px}
+  .imp-row{grid-template-columns:74px 1fr 42px; gap:8px}
+  .imp-row .l{font-size:10.5px}
+  /* 원장 테이블 가로 스크롤 힌트 */
+  .panel.ledger{-webkit-overflow-scrolling:touch}
+  .ledger table{min-width:470px}
+  th{font-size:7.5px; letter-spacing:.15em; padding-bottom:9px}
+  td{padding:9px 8px; font-size:10.5px}
+}
+@media(max-width:380px){
+  .dock button{width:34px; height:34px}
+  .dock button svg{width:16px; height:16px}
+  .kpis,.metrics,.exp-stats{grid-template-columns:1fr}
+}
+
+/* ── 떠다니는 별 (레퍼런스 이펙트) ── */
+body::before{animation:starDrift 240s linear infinite}
+.starlayer{
+  position:fixed; inset:-420px 0 0 -420px; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(1.7px 1.7px at 64px 138px, rgba(255,255,255,.4), transparent),
+    radial-gradient(1.3px 1.3px at 250px 40px, rgba(255,255,255,.28), transparent),
+    radial-gradient(2px 2px at 180px 320px, rgba(255,255,255,.22), transparent),
+    radial-gradient(1.2px 1.2px at 350px 210px, rgba(255,255,255,.3), transparent);
+  background-size:420px 420px;
+  animation:starDrift2 150s linear infinite, twinkle 6s ease-in-out infinite;
+}
+@keyframes starDrift{from{background-position:0 0}to{background-position:-300px 300px}}
+@keyframes starDrift2{from{transform:translate(0,0)}to{transform:translate(420px,-420px)}}
+@keyframes twinkle{0%,100%{opacity:.65}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="starlayer"></div>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Point Optimizer · Mock Demo</div>
+  <h1>포인트 운영 <em>콘솔</em></h1>
+  <div class="sub">한 사람의 프로파일로부터, 마땅한 단 하나의 금액을 산출한다 — <b style='color:#fbbf24'>MOCK DEMO · 모든 수치는 예시</b></div>
+  <hr class="rule">
+</header>
+
+<main>
+<div class="view active" id="v0">
+<div class="duo-grid">
+  <!-- I. 프로파일 -->
+  <section class="panel" id="s1">
+    <div class="numeral">I.</div>
+    <h2>고객 프로파일 <small>Customer Profile</small></h2>
+
+    <div class="presets">
+      <span class="label" style="margin:0">견본&nbsp;</span>
+      <button class="preset" data-preset="hi">전환 유망 고객</button>
+      <button class="preset" data-preset="mid">중간 고객</button>
+      <button class="preset" data-preset="lo">신중한 고객</button>
+    </div>
+
+    <div class="field">
+      <div class="label"><span>현재 통신사</span></div>
+      <div class="chips" id="telco"></div>
+    </div>
+    <div class="field">
+      <div class="label"><span>월 통신비</span></div>
+      <div class="chips" id="fee"></div>
+    </div>
+    <div class="field">
+      <div class="label"><span>데이터 사용량</span></div>
+      <div class="chips" id="usage"></div>
+    </div>
+    <div class="field">
+      <div class="label"><span>약정 잔여</span><b><span id="cmv">0</span> 개월</b></div>
+      <input type="range" id="cm" min="0" max="24" value="0">
+    </div>
+    <div class="duo">
+      <div class="field">
+        <div class="label"><span>나이 (선택)</span></div>
+        <input type="number" class="numin" id="age" placeholder="—">
+      </div>
+      <div class="field">
+        <div class="label"><span>보유 포인트 (선택)</span></div>
+        <input type="number" class="numin" id="pbal" placeholder="—">
+      </div>
+    </div>
+    <button class="cta" id="go">적정 금액 산출</button>
+  </section>
+
+  <!-- II. 산출 -->
+  <section class="panel" id="s2">
+    <div class="numeral">II.</div>
+    <h2>산출 <small>The Verdict</small></h2>
+    <div class="result-empty" id="empty">
+      <div class="orn">&#8258;</div>
+      <div>프로파일을 완성하고 산출을 청하십시오</div>
+    </div>
+    <div class="result-body" id="rbody">
+      <div class="hero">
+        <div class="amount"><span id="amt">0</span><span class="unit"> P</span></div>
+        <hr class="hero-rule">
+        <div class="hero-caption" id="verdict-cap">권고 프로모션 금액</div>
+      </div>
+      <div class="seal warn" id="seal">
+        <div class="dot"></div>
+        <div>
+          <div class="seal-title" id="seal-t"></div>
+          <ul class="seal-reasons" id="seal-r"></ul>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="k">Conversion Odds</div>
+          <div class="v" id="prob">—<em> %</em></div>
+        </div>
+        <div class="metric">
+          <div class="k">Decision Mode</div>
+          <div class="v" style="font-size:15px; letter-spacing:.12em; padding-top:8px" id="mode">—</div>
+          <span class="badge-explore" id="expl" style="display:none">EXPLORATION — 학습용 무작위 금액</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- 실험 운영 -->
+<section class="panel wide" style="margin-top:28px">
+  <div class="numeral">EXP.</div>
+  <h2>실험 운영 <small>Experiment Control · 금액 무작위화로 반응 데이터 수집</small></h2>
+  <div class="expctl">
+    <label class="switch" title="실험 모드 on/off">
+      <input type="checkbox" id="exp-on"><span class="tr"></span>
+    </label>
+    <div class="exp-range">
+      <div class="fld">
+        <div class="label"><span>하한 (P)</span></div>
+        <input type="number" class="numin" id="exp-min" step="1000" min="0">
+      </div>
+      <div class="fld">
+        <div class="label"><span>상한 (P)</span></div>
+        <input type="number" class="numin" id="exp-max" step="1000" min="0">
+      </div>
+      <div class="fld" style="width:auto">
+        <div class="label"><span>지급 방식</span></div>
+        <div class="chips" style="gap:6px">
+          <button class="chip on" id="style-uniform">완전 무작위</button>
+          <button class="chip" id="style-smart">스마트 제시</button>
+        </div>
+      </div>
+    </div>
+    <button class="exp-apply" id="exp-apply">적용</button>
+  </div>
+  <div class="exp-stats">
+    <div class="exp-stat"><div class="k">결정 건수</div><div class="v" id="st-n">—</div></div>
+    <div class="exp-stat"><div class="k">지급 결정 총액</div><div class="v" id="st-total">—<em> P</em></div></div>
+    <div class="exp-stat"><div class="k">평균 금액</div><div class="v" id="st-avg">—<em> P</em></div></div>
+    <div class="exp-stat"><div class="k">무작위 비율</div><div class="v" id="st-rand">—<em> %</em></div></div>
+  </div>
+  <div class="exp-note" id="exp-note"></div>
+</section>
+</div>
+
+<div class="view" id="v1">
+  <!-- III. 기대이익 곡선 -->
+  <section class="panel wide" id="s3">
+    <div class="numeral">III.</div>
+    <div class="chart-head">
+      <h2 style="margin-bottom:8px">기대이익 곡선 <small>Expected-Value Curve · what-if</small></h2>
+      <div class="assume" id="assume"></div>
+    </div>
+    <svg id="evchart" viewBox="0 0 1040 320" role="img" aria-label="쿠폰 금액별 기대이익 곡선"></svg>
+    <div class="sliders">
+      <div>
+        <div class="label"><span>β — 포인트 민감도 <span style="text-transform:none">(1만P당 로그오즈)</span></span><b id="bv"></b></div>
+        <input type="range" id="beta" min="0.02" max="0.40" step="0.01">
+      </div>
+      <div>
+        <div class="label"><span>LTV — 회선 생애가치</span><b id="lv"></b></div>
+        <input type="range" id="ltv" min="40000" max="550000" step="10000">
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="view" id="v2">
+  <!-- IV. 결정 원장 -->
+  <section class="panel wide ledger" id="s4">
+    <div class="numeral">IV.</div>
+    <h2>결정 원장 <small>Ledger of Decisions</small></h2>
+    <table>
+      <thead><tr><th>시각</th><th>고객</th><th style="text-align:right">금액</th><th>성향</th><th>모드</th><th>상태</th></tr></thead>
+      <tbody id="ledger"><tr><td colspan="6" class="empty-ledger">기록 없음</td></tr></tbody>
+    </table>
+  </section>
+
+</div>
+
+<div class="view" id="v3">
+  <!-- V. 시장 정찰 -->
+  <section class="panel wide" id="s5">
+    <div class="numeral">V.</div>
+    <div class="chart-head">
+      <h2 style="margin-bottom:8px">시장 정찰 <small>Market Reconnaissance · 타 통신사 가격 수집 현황</small></h2>
+      <div class="assume" id="mkt-status">수집 현황 조회 중…</div>
+    </div>
+    <div class="tiers" id="tiers"></div>
+    <div class="mkt-foot" id="mkt-foot"></div>
+  </section>
+</div>
+
+<div class="view" id="v4">
+  <section class="panel wide">
+    <div class="numeral">VI.</div>
+    <h2>방법론 <small>The Method of the House · 데이터 → 모델 → 추론</small></h2>
+
+    <div class="chapter">
+      <div class="ch-label">Chapitre 01 · Data Refinement</div>
+      <div class="ch-title">데이터 정제 공정</div>
+      <div class="ch-desc">합성(mock) 설문 데이터에서 시작해, 시간의 결을 맞추고 라벨을 짓고 오염을 걷어낸다.</div>
+      <div class="flow">
+        <div class="step"><div class="s-n">i.</div><div class="s-big">12,000</div><div class="s-t">원천 설문</div><div class="s-d">mock 표본 · 예시</div></div>
+        <div class="step"><div class="s-n">ii.</div><div class="s-t">타임존 통일</div><div class="s-d">UTC/KST 혼재 보정<br>타임존 정규화(예시)</div></div>
+        <div class="step"><div class="s-n">iii.</div><div class="s-t">D+7 라벨</div><div class="s-d">제출 후 168h 내 개통<br>실험 주지표와 동일 정의</div></div>
+        <div class="step"><div class="s-n">iv.</div><div class="s-t">예외 제외</div><div class="s-d">관측 미완료·역순 데이터<br>제외 (mock)</div></div>
+        <div class="step"><div class="s-n">v.</div><div class="s-big">9,800</div><div class="s-t">학습 데이터</div><div class="s-d">시간분할 — 학습/홀드아웃<br>(미래 구간 평가)</div></div>
+      </div>
+      <div class="note"><b>누수 차단.</b> 쿠폰등록·개통시도 등 설문 제출 이후에 생기는 원천 컬럼은 금지 목록으로 코드에 박제되어, 피처에 섞이면 예외가 발생하고 테스트가 실패한다. 예측 시점에 존재하지 않는 정보는 성능처럼 보여도 가짜다.</div>
+    </div>
+
+    <div class="chapter">
+      <div class="ch-label">Chapitre 02 · Le Modèle</div>
+      <div class="ch-title">모델 아키텍처</div>
+      <div class="ch-desc">설문시점 피처 8종(통신사·통신비·데이터·약정잔여·제출시각 파생)으로 전환 확률을 빚는다. 후보를 같은 CV 링에 올려 경쟁시켰다.</div>
+      <div class="vs">
+        <div><div class="v-t">로지스틱 회귀</div><div class="v-a">0.69</div><div class="v-s">CV AUC · Challenger</div></div>
+        <div class="win"><div class="v-t">HistGradientBoosting ◈</div><div class="v-a">0.71</div><div class="v-s">CV AUC · 채택 + Platt 캘리브레이션</div></div>
+        <div><div class="v-t">딥러닝 계열</div><div class="v-a">기각</div><div class="v-s">소표본 열세</div></div>
+      </div>
+      <div class="metrics" style="max-width:820px">
+        <div class="metric"><div class="k">Holdout AUC (미래 구간)</div><div class="v">0.71</div></div>
+        <div class="metric"><div class="k">상·하위 십분위 리프트</div><div class="v">5.0<em>×</em></div></div>
+      </div>
+      <div class="imp">
+        <div class="ch-label" style="margin-bottom:8px">Permutation Importance · ΔAUC</div>
+        <div class="imp-row"><span class="l">약정 잔여월</span><span class="bar"><i style="--w:100%"></i></span><span class="v">+.09</span></div>
+        <div class="imp-row"><span class="l">제출 시각</span><span class="bar"><i style="--w:44%"></i></span><span class="v">+.05</span></div>
+        <div class="imp-row"><span class="l">월 통신비</span><span class="bar"><i style="--w:15%"></i></span><span class="v">+.02</span></div>
+        <div class="imp-row"><span class="l">통신사</span><span class="bar"><i style="--w:13%"></i></span><span class="v">+.015</span></div>
+        <div class="imp-row"><span class="l">요일</span><span class="bar"><i style="--w:8%"></i></span><span class="v">+.01</span></div>
+        <div class="imp-row"><span class="l">데이터 사용량</span><span class="bar"><i style="--w:3%"></i></span><span class="v">+.005</span></div>
+      </div>
+      <div class="note"><b>홀드아웃이 CV보다 낮은 이유.</b> 홀드아웃 기간의 분포 변화가 성능에 반영된다(예시) — 오퍼 정보가 피처에 없는 한 성능 상한이 존재하며, 노출 오퍼 로깅이 다음 병목이다.</div>
+    </div>
+
+    <div class="chapter">
+      <div class="ch-label">Chapitre 03 · L'Inférence</div>
+      <div class="ch-title">추론 파이프라인 — 한 번의 산출이 지나는 길</div>
+      <div class="pipeline">
+        <div class="p-step"><div class="p-dot">1</div><div class="p-body">
+          <div class="p-t">입력 <small>POST /recommend</small></div>
+          <div class="p-d">고객 프로파일(통신사·통신비·데이터·약정잔여). 나이·보유포인트·거주지는 v2 피처 편입 전까지 로깅만.</div></div></div>
+        <div class="p-step"><div class="p-dot">2</div><div class="p-body">
+          <div class="p-t">피처 빌드 <small>features.py</small></div>
+          <div class="p-d">설문시점 8종 화이트리스트 — KST 시각·새벽 여부·요일 파생. 금지 목록 위반 시 즉시 예외.</div></div></div>
+        <div class="p-step"><div class="p-dot">3</div><div class="p-body">
+          <div class="p-t">1층 — 성향 모델 <small>model.joblib</small></div>
+          <div class="p-d">캘리브레이션된 전환 확률 P(전환|X) 산출. 상위 유저와 하위 유저의 전환율 격차가 크게 벌어진다(예시).</div></div></div>
+        <div class="p-step"><div class="p-dot">4</div><div class="p-body">
+          <div class="p-t">LTV 조회 <small>policy.json</small></div>
+          <div class="p-d">사용량 구간 → 기대 LTV(월 체감가 × 18개월, 요금제 믹스 가중 — 예시값).</div></div></div>
+        <div class="p-step"><div class="p-dot">5</div><div class="p-body">
+          <div class="p-t">2층 — 결정 계층 <small>optimize.py</small></div>
+          <div class="p-d">기대이익 P(X,p)·(LTV−p) 최대 금액 탐색. 단, 포인트 민감도 β가 실측 전이면 <b style="color:var(--amber)">판정 보류</b> — 현행 10,000P + 사유를 반환한다. 근거 없는 최적해를 결론처럼 내보내지 않는다.</div></div></div>
+        <div class="p-step"><div class="p-dot">6</div><div class="p-body">
+          <div class="p-t">ε-탐색 <small>15%</small></div>
+          <div class="p-d">추천의 15%는 그리드 내 무작위 금액. 행동확률(propensity)과 함께 기록되어 편향 없는 β 추정의 재료가 된다.</div></div></div>
+        <div class="p-step"><div class="p-dot">∞</div><div class="p-body">
+          <div class="p-t">폐루프 <small>decisions.jsonl → β → policy</small></div>
+          <div class="p-d">결정 로그 × 개통 결과(D+7) 조인 → IPS 가중 추정으로 β 갱신 → 판정 보류가 유저별 최적 금액 모드로 자동 전환. 서빙이 곧 실험이다.</div></div></div>
+      </div>
+      <div class="note" style="margin-top:4px">본 화면의 모든 지표는 mock 데이터 기반 예시입니다</div>
+    </div>
+  </section>
+</div>
+
+<div class="view" id="v6">
+  <section class="panel wide">
+    <div class="numeral">VII.</div>
+    <h2>경영 브리핑 <small>Executive Briefing · 비기술 보고용</small></h2>
+
+    <div class="brief-hero">
+      <div class="bh-line">모든 고객에게 똑같이 1만 포인트를 주는 대신,<br>고객마다 <b>"넘어올 만큼만"</b> 주어 같은 예산으로 더 많은 가입을 만듭니다.</div>
+      <div class="bh-sub">본 데모는 mock(합성) 데이터로 동작합니다 — 실제 고객 데이터는 포함되어 있지 않으며, 모든 수치는 예시입니다.</div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="v">24~30<em>만원</em></div><div class="k">고객 1명이 가입하면<br>우리가 얻는 가치(18개월)</div></div>
+      <div class="kpi"><div class="v">18.2<em>%</em></div><div class="k">계산기 이용 고객의<br>현재 가입 전환율</div></div>
+      <div class="kpi"><div class="v">5<em>배</em></div><div class="k">시스템이 가려내는<br>유망-비유망 고객 격차</div></div>
+      <div class="kpi"><div class="v">10<em>주</em></div><div class="k">"얼마면 충분한지"<br>답을 얻는 데 필요한 기간</div></div>
+    </div>
+
+    <div class="ch-label" style="margin-bottom:14px">Pipeline · 시스템이 일하는 순서</div>
+    <div class="bflow">
+      <div class="bstep"><div class="bnum">1</div><div class="bt">고객이 계산기 이용</div><div class="bd">통신사·요금·사용량을<br>입력하며 관심을 표시</div></div>
+      <div class="bstep"><div class="bnum">2</div><div class="bt">가입 가능성 판독</div><div class="bd">과거 사례(mock)로 학습한<br>AI가 "이 고객이 넘어올 확률" 산출</div></div>
+      <div class="bstep"><div class="bnum">3</div><div class="bt">적정 금액 계산</div><div class="bd">고객 가치·경쟁사 최저가와<br>비교해 "필요한 만큼만" 산정</div></div>
+      <div class="bstep"><div class="bnum">4</div><div class="bt">쿠폰 지급 + 기록</div><div class="bd">얼마를 제시했고 가입했는지<br>전 과정이 자동 기록</div></div>
+      <div class="bstep"><div class="bnum">5</div><div class="bt">반응에서 학습</div><div class="bd">고객 반응이 다음 계산을<br>계속 더 정확하게 만듦</div></div>
+    </div>
+    <div class="bloop">⟲ &nbsp;5번의 기록이 다시 2·3번으로 돌아갑니다 — 쓸수록 똑똑해지는 순환 구조</div>
+
+    <div class="ch-label" style="margin:26px 0 14px">Why · 왜 이렇게 만들었나</div>
+    <div class="whys">
+      <div class="why">
+        <div class="wq">왜 고객마다 금액이 다른가?</div>
+        <div class="wa">백화점이 모든 고객에게 같은 쿠폰을 뿌리지 않는 것과 같습니다. <b>어차피 올 고객에게 큰 쿠폰은 낭비</b>이고, 망설이는 고객에게 작은 쿠폰은 효과가 없습니다. 우리 시스템은 이미 유망 고객과 비유망 고객을 큰 격차로 가려냅니다 — 같은 예산을 다르게 배분할 준비가 되어 있습니다.</div>
+      </div>
+      <div class="why">
+        <div class="wq">왜 "판독"과 "금액 계산"을 나눴나?</div>
+        <div class="wa">요금제와 포인트 정책은 매달 바뀝니다. 판독(AI)과 금액 계산(공식)을 분리해 두면 <b>정책이 바뀌어도 숫자만 갈아끼우면 즉시 반영</b>됩니다. 정책 변경은 시스템 재작업 없이 즉시 반영되는 구조입니다. 모든 금액엔 "왜 이 금액인지" 근거가 따라붙어 감사도 가능합니다.</div>
+      </div>
+      <div class="why">
+        <div class="wq">왜 일부러 금액을 조금씩 다르게 시험하나?</div>
+        <div class="wa">신제품 가격을 정할 때 시장조사를 하는 것과 같습니다. 지금까지 <b>모든 고객에게 1만 포인트만 줘봤기 때문에 "얼마면 충분한지" 아무도 모릅니다.</b> 10주간 승인 범위 안에서 금액을 시험하면 그 답이 데이터로 확보되고, 이후엔 시스템이 고객별 최적 금액을 자동 산출합니다. 예산 영향은 소폭으로 통제됩니다(예시).</div>
+      </div>
+      <div class="why">
+        <div class="wq">왜 시스템이 "아직 모른다"고 말하나?</div>
+        <div class="wa">근거 없는 확신은 돈을 잃는 지름길이라서입니다. 답을 얻기 전까지 시스템은 <b>현행 정책(1만 포인트)을 그대로 유지</b>하고, 화면에 "판정 보류"와 그 이유를 정직하게 표시합니다. 근거가 쌓이면 자동으로 고객별 산출 모드로 전환됩니다 — 언제 무엇을 근거로 바뀌는지 이 화면에서 전부 확인할 수 있습니다.</div>
+      </div>
+    </div>
+
+    <div class="ask">
+      <div class="at">Decision Needed</div>
+      <div class="ab">필요한 결정은 하나 — <b>10주간의 금액 시험 승인</b>입니다.</div>
+      <div class="as">승인 범위(하한~상한)는 이 콘솔에서 직접 통제할 수 있고, 총 지급액·평균 금액이 실시간 집계됩니다. 시험이 끝나면 같은 예산으로 더 많은 가입을 만드는 고객별 자동 산출이 시작됩니다.</div>
+    </div>
+  </section>
+</div>
+</main>
+
+<nav class="dock" aria-label="화면 전환">
+  <button class="active" data-view="0" data-tip="산정">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+  </button>
+  <button data-view="1" data-tip="기대이익 곡선">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+  </button>
+  <button data-view="2" data-tip="결정 원장">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+  </button>
+  <button data-view="3" data-tip="시장 정찰">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg>
+  </button>
+  <button data-view="4" data-tip="방법론">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h7a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h7z"/></svg>
+  </button>
+  <button data-view="5" data-tip="경영 브리핑">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18"/><path d="M5 4v11h14V4"/><path d="M12 15v2.5"/><path d="m8.5 21 3.5-3.5L15.5 21"/></svg>
+  </button>
+  <span class="sep"></span>
+  <button data-tip="로그아웃" onclick="sessionStorage.removeItem('demo_auth');location.href='login.html'">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>
+  </button>
+</nav>
+
+<footer>
+  <span id="fpolicy">policy —</span><br>
+  <span class="g">exploration이 곧 실험이다 — 모든 결정은 propensity와 함께 기록된다</span>
+</footer>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const OPT={
+  telco:[["LGU","LG U+"],["LGU_MVNO","LG 알뜰"],["KT","KT"],["KT_MVNO","KT 알뜰"],["SKT_MVNO","SKT 알뜰"]],
+  fee:[["UNDER_TEN_THOUSAND_RANGE","1만 미만"],["TEN_THOUSAND_RANGE","1만원대"],["TWENTY_THOUSAND_RANGE","2만원대"],["THIRTY_THOUSAND_RANGE","3만원대"],["FORTY_THOUSAND_RANGE","4만원대"],["FIFTY_THOUSAND_RANGE","5만원대"]],
+  usage:[["UNDER_7GB","7GB 미만"],["AROUND_15GB","15GB 안팎"],["AROUND_71GB","71GB 안팎"],["UNLIMITED","무제한"]],
+};
+const sel={telco:"LGU_MVNO",fee:"THIRTY_THOUSAND_RANGE",usage:"UNLIMITED"};
+for(const k of Object.keys(OPT)){
+  const box=$(k);
+  OPT[k].forEach(([v,label])=>{
+    const c=document.createElement("button");
+    c.className="chip"+(sel[k]===v?" on":""); c.textContent=label; c.dataset.v=v;
+    c.onclick=()=>{sel[k]=v;[...box.children].forEach(x=>x.classList.toggle("on",x===c))};
+    box.appendChild(c);
+  });
+}
+$("cm").oninput=e=>$("cmv").textContent=e.target.value;
+const PRESETS={
+  hi:{telco:"LGU",fee:"FORTY_THOUSAND_RANGE",usage:"UNLIMITED",cm:0,age:34,pbal:4200},
+  mid:{telco:"LGU_MVNO",fee:"THIRTY_THOUSAND_RANGE",usage:"AROUND_71GB",cm:0,age:41,pbal:1500},
+  lo:{telco:"KT",fee:"FIFTY_THOUSAND_RANGE",usage:"UNDER_7GB",cm:12,age:52,pbal:0},
+};
+document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{
+  const p=PRESETS[b.dataset.preset];
+  for(const k of ["telco","fee","usage"]){sel[k]=p[k];[...$(k).children].forEach(x=>x.classList.toggle("on",x.dataset.v===p[k]))}
+  $("cm").value=p.cm;$("cmv").textContent=p.cm;$("age").value=p.age;$("pbal").value=p.pbal;
+  $("go").click();
+});
+
+let policy=null, lastBase=null, lastRec=null;
+const fmt=n=>n.toLocaleString("ko-KR");
+const sig=x=>1/(1+Math.exp(-x));
+const logit=p=>Math.log(Math.max(1e-6,Math.min(1-1e-6,p))/(1-Math.max(1e-6,Math.min(1-1e-6,p))));
+
+/* ── 정적 데모: 브라우저 ONNX 추론 ── */
+let ortSession=null;
+const REASONS={
+  beta_prior:"포인트 민감도(β)가 실측이 아닌 가정값 — 학습 데이터의 오퍼 금액이 전원 10,000P 고정이라 금액-전환 반응을 추정할 변동이 없음. 탐색 트래픽/실험 로그 축적 후 해소.",
+  ltv_assumed:"회선 LTV가 실측이 아닌 가정값(재무 데이터 미연동) — 최적 금액 계산의 예산 항 (LTV − p) 이 불확실.",
+};
+async function loadPolicy(){
+  policy={...STATIC.policy};
+  try{const e=JSON.parse(localStorage.getItem("demo_exp")||"null"); if(e)Object.assign(policy,e);}catch(_){}
+  policy.evidence_gaps=[];
+  if(policy.beta_source!=="estimated")policy.evidence_gaps.push("beta_prior");
+  if(policy.ltv_source!=="measured")policy.evidence_gaps.push("ltv_assumed");
+  $("beta").value=policy.beta_log_odds_per_10k; $("ltv").value=policy.ltv_krw;
+  $("fpolicy").textContent=`STATIC DEMO · policy ${policy.policy_version} · ε=${policy.explore_rate} · 브라우저 ONNX 추론 (mock AUC ${STATIC.model_meta.holdout_auc})`;
+  $("exp-on").checked=!!policy.experiment_mode;
+  $("exp-min").value=policy.experiment_min; $("exp-max").value=policy.experiment_max;
+  setStyle(policy.experiment_style||"uniform");
+  syncSliderLabels(); drawEV();
+  try{ ortSession=await ort.InferenceSession.create("assets/model.onnx"); }
+  catch(e){ $("fpolicy").textContent="ONNX 모델 로드 실패 — assets/model.onnx 확인"; }
+}
+let expStyle="uniform";
+function setStyle(s){
+  expStyle=s;
+  $("style-uniform").classList.toggle("on",s==="uniform");
+  $("style-smart").classList.toggle("on",s==="smart");
+  renderExpNote();
+}
+$("style-uniform").onclick=()=>setStyle("uniform");
+$("style-smart").onclick=()=>setStyle("smart");
+/* 금액 그리드의 정보량(분산)으로 β 실측까지 필요한 주수 추정
+   n ≈ k / (SE² · Var(x) · E[p(1-p)]),  x=(금액−기준)/1만 — 시뮬레이션으로 보정한 근사식 */
+function weeksToBeta(lo,hi,step,ref,weekly){
+  const xs=[]; for(let p=lo;p<=hi;p+=step)xs.push((p-ref)/1e4);
+  if(xs.length<2)return null;
+  const m=xs.reduce((a,b)=>a+b,0)/xs.length;
+  const v=xs.reduce((a,b)=>a+(b-m)**2,0)/xs.length;
+  if(v<1e-9)return null;
+  return Math.ceil((1.12/(0.0025*v*0.15))/weekly);
+}
+function renderExpNote(){
+  const on=$("exp-on").checked, lo=+$("exp-min").value, hi=+$("exp-max").value;
+  $("exp-note").innerHTML=!on
+    ?`꺼짐 — 평시 정책으로 동작합니다 (현행 ${fmt(policy?policy.fallback_point:10000)}P + 탐색 ${policy?policy.explore_rate*100:15}%).`
+    :(()=>{
+      const step=policy?policy.experiment_step||1000:1000, ref=policy?policy.ref_point:10000;
+      const w=weeksToBeta(lo,hi,step,ref,550);
+      const arms=Math.floor((hi-lo)/step)+1;
+      const dur=w?`<br><b>예상 소요 ${w}주</b> (금액 ${arms}종, ${fmt(step)}P 단위) — 이 범위에서 "얼마면 충분한가"의 답이 나오기까지. `
+                 +`기준가(${fmt(ref)}P)에서 <b>멀리 떨어진 금액</b>이 많을수록 빨라집니다 — 하한을 0P까지 낮추면 크게 단축됩니다.`:"";
+      return (expStyle==="smart"
+      ?`<b>스마트 제시 작동 중</b> — 유저별로 "이 정도면 충분" 추정치(경쟁사 최저가 격차 × 보전개월 + 전환성향 보정)를 계산하고, 그 주변 ±${fmt(policy?policy.smart_jitter:4000)}P에서만 무작위로 지급합니다. 근거 있는 금액이면서 학습도 유지됩니다.`
+      :`<b>완전 무작위 작동 중</b> — 모든 산출이 ${fmt(lo)}~${fmt(hi)}P 범위 무작위입니다.`)+dur;
+    })();
+}
+async function loadStats(){
+  const rows=JSON.parse(localStorage.getItem("demo_ledger")||"[]");
+  const n=rows.length, total=rows.reduce((a,r)=>a+(r.point||0),0);
+  const rand=n?rows.filter(r=>r.explore).length/n:0;
+  $("st-n").textContent=fmt(n);
+  $("st-total").innerHTML=fmt(total)+"<em> P</em>";
+  $("st-avg").innerHTML=fmt(n?Math.round(total/n):0)+"<em> P</em>";
+  $("st-rand").innerHTML=(rand*100).toFixed(0)+"<em> %</em>";
+}
+$("exp-apply").onclick=()=>{
+  const step=policy.experiment_step||1000;
+  const lo=Math.floor((+$("exp-min").value)/step)*step, hi=Math.floor((+$("exp-max").value)/step)*step;
+  if(lo>hi||isNaN(lo)||isNaN(hi)){alert("설정 실패 — 하한/상한을 확인하세요");return}
+  Object.assign(policy,{experiment_mode:$("exp-on").checked,experiment_min:lo,experiment_max:hi,experiment_style:expStyle});
+  localStorage.setItem("demo_exp",JSON.stringify({experiment_mode:policy.experiment_mode,experiment_min:lo,experiment_max:hi,experiment_style:expStyle}));
+  $("exp-min").value=lo; $("exp-max").value=hi;
+  renderExpNote();
+};
+$("exp-on").onchange=renderExpNote;
+function syncSliderLabels(){
+  $("bv").textContent=(+$("beta").value).toFixed(2)+(policy&&policy.beta_source!=="estimated"?" (가정)":"");
+  $("lv").textContent=fmt(+$("ltv").value)+"원"+(policy&&policy.ltv_source!=="measured"?" (가정)":"");
+  const gaps=policy?policy.evidence_gaps||[]:[];
+  $("assume").innerHTML=gaps.length?`곡선은 <b>가정값 시나리오</b>입니다 — 실측 β·LTV 확보 전까지 참고용`:`실측 파라미터 반영`;
+}
+$("beta").oninput=$("ltv").oninput=()=>{syncSliderLabels();drawEV()};
+
+function encodeFeatures(){
+  const T=["KT","KT_MVNO","LGU","LGU_MVNO","SKT_MVNO"];
+  const FEE=STATIC.ordinal_maps.monthly_fee_range, USE=STATIC.ordinal_maps.data_usage_range;
+  const now=new Date();
+  const kst=new Date(now.getTime()+now.getTimezoneOffset()*60000+9*3600000);
+  const hour=kst.getHours(), dow=(kst.getDay()+6)%7, cm=+$("cm").value;
+  return Float32Array.from([...T.map(t=>sel.telco===t?1:0), FEE.indexOf(sel.fee), USE.indexOf(sel.usage), cm, cm===0?1:0, hour, hour<6?1:0, dow]);
+}
+function marketMin(usage){
+  const t=STATIC.market.tiers[usage];
+  return (t&&t.collected)?t.market_min_eff:STATIC.market.tiers.UNLIMITED.market_min_eff;
+}
+function recommendLocal(base){
+  const usage=sel.usage;
+  const ltv=(policy.ltv_by_usage||{})[usage] ?? policy.ltv_krw;
+  const step=policy.experiment_step||1000;
+  const pAt=p=>sig(logit(base)+policy.beta_log_odds_per_10k*(p-policy.ref_point)/1e4);
+  const grid=policy.point_grid.filter(p=>p>=policy.min_point&&p<=policy.max_point);
+  let best=grid[0]; grid.forEach(p=>{if(pAt(p)*(ltv-p)>pAt(best)*(ltv-best))best=p});
+  if(policy.experiment_mode){
+    if(policy.experiment_style==="smart"){
+      const chegam=(policy.chegam_by_usage||{})[usage];
+      const mkt=marketMin(usage);
+      const gap=(chegam&&mkt)?Math.max(0,chegam-mkt):0;
+      let est=Math.round((gap*(policy.smart_months||3)+(1-base)*(policy.smart_prop_adj||6000))/step)*step;
+      est=Math.max(policy.experiment_min,Math.min(policy.experiment_max,est));
+      const j=policy.smart_jitter||4000;
+      const lo=Math.max(policy.experiment_min,est-j), hi=Math.min(policy.experiment_max,est+j);
+      const win=[]; for(let p=lo;p<=hi;p+=step)win.push(p);
+      const point=win[Math.floor(Math.random()*win.length)];
+      return {point, status:"experiment", explore:true, ltv_used:ltv, base_prob:base,
+        propensity:1/win.length, expected_prob:pAt(point),
+        reasons:[`스마트 제시 — 추정 적정가 ${fmt(est)}P (시장격차 ${fmt(gap)}원/월 × ${policy.smart_months||3}개월 보전 + 성향보정 ${fmt(Math.round((1-base)*(policy.smart_prop_adj||6000)))}P) ± 지터 무작위`]};
+    }
+    const eg=[]; for(let p=policy.experiment_min;p<=policy.experiment_max;p+=step)eg.push(p);
+    const point=eg[Math.floor(Math.random()*eg.length)];
+    return {point, status:"experiment", explore:true, ltv_used:ltv, base_prob:base,
+      propensity:1/eg.length, expected_prob:pAt(point),
+      reasons:[`실험 모드 — ${fmt(policy.experiment_min)}~${fmt(policy.experiment_max)}P 범위 무작위 지급으로 금액-전환 반응 데이터를 수집 중`]};
+  }
+  const gaps=policy.evidence_gaps;
+  const exploit=gaps.length?policy.fallback_point:best;
+  const explore=Math.random()<policy.explore_rate;
+  const point=explore?grid[Math.floor(Math.random()*grid.length)]:exploit;
+  return {point, status:gaps.length?"insufficient_evidence":"ok", reasons:gaps.map(g=>REASONS[g]),
+    explore, ltv_used:ltv, base_prob:base, expected_prob:pAt(point),
+    propensity:policy.explore_rate/grid.length+(1-policy.explore_rate)*(point===exploit?1:0)};
+}
+$("go").onclick=async()=>{
+  $("go").disabled=true;
+  try{
+    if(!ortSession)throw new Error("model not loaded");
+    const uid="demo-"+Math.random().toString(36).slice(2,8);
+    const feats=encodeFeatures();
+    const out=await ortSession.run({input:new ort.Tensor("float32",feats,[1,feats.length])});
+    const base=out[ortSession.outputNames[1]].data[1];
+    const r=recommendLocal(base); r.user_id=uid;
+    const led=JSON.parse(localStorage.getItem("demo_ledger")||"[]");
+    led.unshift({ts:Date.now()/1000,user_id:uid,point:r.point,status:r.status,explore:r.explore,base_prob:r.base_prob,propensity:r.propensity});
+    localStorage.setItem("demo_ledger",JSON.stringify(led.slice(0,30)));
+    lastRec=r; lastBase=r.base_prob;
+    if(r.ltv_used){$("ltv").value=Math.round(r.ltv_used/10000)*10000; syncSliderLabels();}
+    $("empty").style.display="none"; $("rbody").style.display="block";
+    countUp($("amt"),r.point);
+    $("prob").innerHTML=(r.expected_prob*100).toFixed(1)+"<em> %</em>";
+    $("mode").textContent=r.explore?"탐색":"활용";
+    $("expl").style.display=r.explore?"inline-block":"none";
+    const seal=$("seal");
+    if(r.status==="experiment"){
+      seal.className="seal exp";
+      $("seal-t").textContent="◈ 실험 모드 — 승인 범위 내 무작위 지급";
+      $("verdict-cap").textContent="실험 지급 금액 · 반응이 곧 적정가의 근거가 됩니다";
+      $("seal-r").innerHTML=r.reasons.map(x=>`<li>${x}</li>`).join("");
+    }else if(r.status==="insufficient_evidence"){
+      seal.className="seal warn";
+      $("seal-t").textContent="◈ 판정 보류 — 근거 축적 중 (현행 정책 금액 적용)";
+      $("verdict-cap").textContent=r.explore?"학습용 탐색 금액 · 반응이 β 추정의 근거가 됩니다":"현행 정책 금액 · 적정치는 산출 근거 확보 후 제공";
+      $("seal-r").innerHTML=r.reasons.map(x=>`<li>${x}</li>`).join("");
+    }else{
+      seal.className="seal ok";
+      $("seal-t").textContent="◈ 근거 충분 — 기대이익 최적 금액";
+      $("verdict-cap").textContent="권고 프로모션 금액";
+      $("seal-r").innerHTML="";
+    }
+    drawEV(); loadLedger(); loadStats();
+  }catch(e){ alert("추론 실패 — 모델 로드 상태를 확인하세요 ("+e.message+")"); }
+  $("go").disabled=false;
+};
+
+function countUp(el,to){
+  const t0=performance.now(),dur=900,from=0;
+  const step=t=>{const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);
+    el.textContent=fmt(Math.round(from+(to-from)*e));
+    if(k<1)requestAnimationFrame(step)};
+  requestAnimationFrame(step);
+}
+
+/* ── EV curve (single-series line · crosshair tooltip · direct label at optimum) ── */
+const NS="http://www.w3.org/2000/svg";
+function E(t,attrs,parent){const el=document.createElementNS(NS,t);for(const k in attrs)el.setAttribute(k,attrs[k]);if(parent)parent.appendChild(el);return el}
+function drawEV(){
+  const svg=$("evchart"); svg.innerHTML="";
+  if(!policy)return;
+  const base=lastBase==null?0.25:lastBase;
+  const beta=+$("beta").value, ltv=+$("ltv").value, ref=policy.ref_point||10000;
+  const PMAX=Math.max(...policy.point_grid);
+  const mob=window.innerWidth<700;
+  const M=mob?{l:50,r:14,t:30,b:44}:{l:86,r:40,t:26,b:46};
+  const W=mob?430:1040,H=mob?300:320,iw=W-M.l-M.r,ih=H-M.t-M.b;
+  const FS=mob?{ax:12,pt:12,cap:11,lab:12.5}:{ax:11,pt:11,cap:10,lab:11.5};
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const ev=p=>sig(logit(base)+beta*(p-ref)/1e4)*(ltv-p);
+  const pts=[];for(let i=0;i<=160;i++){const p=PMAX*i/160;pts.push([p,ev(p)])}
+  const ys=pts.map(d=>d[1]),ymin=Math.min(...ys),ymax=Math.max(...ys),pad=(ymax-ymin)*.15||1;
+  const X=p=>M.l+iw*p/PMAX, Y=v=>M.t+ih*(1-(v-(ymin-pad))/((ymax+pad)-(ymin-pad)));
+  /* recessive grid + axis */
+  const span=(ymax+pad)-(ymin-pad), dec=span<5000?2:span<40000?1:0;
+  for(let i=0;i<=4;i++){
+    const v=ymin-pad+span*i/4;
+    E("line",{x1:M.l,x2:W-M.r,y1:Y(v),y2:Y(v),stroke:"#1a2338","stroke-width":1},svg);
+    E("text",{x:M.l-8,y:Y(v)+4,"text-anchor":"end",fill:"#5d6a82","font-size":FS.ax,"font-family":"JetBrains Mono"},svg).textContent=(v/1e4).toFixed(dec)+"만";
+  }
+  policy.point_grid.forEach(p=>{
+    E("text",{x:X(p),y:H-M.b+23,"text-anchor":"middle",fill:"#5d6a82","font-size":FS.pt,"font-family":"JetBrains Mono"},svg).textContent=p===0?"0":(mob?(p/1e4).toFixed(p%1e4?1:0)+"만":fmt(p));
+  });
+  E("text",{x:mob?4:M.l-58,y:M.t-10,fill:"#5d6a82","font-size":FS.cap,"font-family":"JetBrains Mono","letter-spacing":mob?"0":"2"},svg).textContent="기대이익";
+  E("text",{x:W-M.r,y:H-6,"text-anchor":"end",fill:"#5d6a82","font-size":FS.cap,"font-family":"JetBrains Mono","letter-spacing":mob?"0":"2"},svg).textContent="쿠폰 금액 (P)";
+  /* series line 2px */
+  E("path",{d:pts.map((d,i)=>(i?"L":"M")+X(d[0]).toFixed(1)+" "+Y(d[1]).toFixed(1)).join(""),fill:"none",stroke:"#60a5fa","stroke-width":2},svg);
+  /* grid-amount dots (≥8px) */
+  policy.point_grid.forEach(p=>E("circle",{cx:X(p),cy:Y(ev(p)),r:4.5,fill:"#60a5fa",stroke:"#0b111c","stroke-width":2},svg));
+  /* fallback = 현행 (diamond) */
+  const fb=policy.fallback_point??1e4, fx=X(fb),fy=Y(ev(fb));
+  E("path",{d:`M${fx} ${fy-8}L${fx+8} ${fy}L${fx} ${fy+8}L${fx-8} ${fy}Z`,fill:"#0b111c",stroke:"#9ba6b8","stroke-width":1.5},svg);
+  E("text",{x:fx,y:fy-16,"text-anchor":"middle",fill:"#9ba6b8","font-size":FS.lab,"font-family":"Pretendard"},svg).textContent="현행";
+  /* EV optimum (ring + direct label) */
+  let best=policy.point_grid[0];policy.point_grid.forEach(p=>{if(ev(p)>ev(best))best=p});
+  const bx=X(best),by=Y(ev(best));
+  E("circle",{cx:bx,cy:by,r:9,fill:"none",stroke:"#ff8a70","stroke-width":1.6},svg);
+  E("circle",{cx:bx,cy:by,r:3,fill:"#ff8a70"},svg);
+  const bAnchor=(bx>W-M.r-60)?"end":(bx<M.l+60?"start":"middle");
+  E("text",{x:bx+(bAnchor==="end"?10:bAnchor==="start"?-10:0),y:by-18,"text-anchor":bAnchor,fill:"#ff8a70","font-size":FS.lab,"font-family":"Pretendard","letter-spacing":"0"},svg).textContent="EV 최적 "+fmt(best)+"P";
+  /* crosshair + tooltip */
+  const cross=E("line",{y1:M.t,y2:H-M.b,stroke:"#60a5fa","stroke-width":1,"stroke-dasharray":"2 4",opacity:0},svg);
+  const dot=E("circle",{r:4,fill:"#ff8a70",opacity:0},svg);
+  const hot=E("rect",{x:M.l,y:M.t,width:iw,height:ih,fill:"transparent"},svg);
+  hot.addEventListener("mousemove",e=>{
+    const r=svg.getBoundingClientRect(),sx=W/r.width;
+    const p=Math.max(0,Math.min(PMAX,(e.clientX-r.left)*sx===0?0:((e.clientX-r.left)*sx-M.l)/iw*PMAX));
+    const v=ev(p),pr=sig(logit(base)+beta*(p-ref)/1e4);
+    cross.setAttribute("x1",X(p));cross.setAttribute("x2",X(p));cross.setAttribute("opacity",.6);
+    dot.setAttribute("cx",X(p));dot.setAttribute("cy",Y(v));dot.setAttribute("opacity",1);
+    const tip=$("tip");tip.style.display="block";
+    tip.style.left=(e.clientX+18)+"px";tip.style.top=(e.clientY-14)+"px";
+    tip.innerHTML=`금액 <b>${fmt(Math.round(p/500)*500)} P</b><br>전환확률 <b>${(pr*100).toFixed(1)}%</b><br>기대이익 <b>${fmt(Math.round(v))}원</b>`;
+  });
+  hot.addEventListener("mouseleave",()=>{cross.setAttribute("opacity",0);dot.setAttribute("opacity",0);$("tip").style.display="none"});
+}
+
+async function loadLedger(){
+  try{
+    const rows=JSON.parse(localStorage.getItem("demo_ledger")||"[]").slice(0,10);
+    if(!rows.length)return;
+    $("ledger").innerHTML=rows.map(d=>`<tr>
+      <td>${new Date(d.ts*1000).toLocaleTimeString("ko-KR",{hour12:false})}</td>
+      <td>${d.user_id}</td>
+      <td class="pt" style="text-align:right">${fmt(d.point)} P</td>
+      <td>${(d.base_prob*100).toFixed(1)}%</td>
+      <td><span class="tag ${d.explore?"explore":"exploit"}">${d.explore?"탐색":"활용"}</span></td>
+      <td style="color:${d.status==="ok"?"var(--sage)":"var(--amber)"}">${d.status==="ok"?"근거충분":"판정보류"}</td>
+    </tr>`).join("");
+  }catch(e){}
+}
+/* ── V. 시장 정찰 ── */
+const TIER_KO={UNDER_7GB:["7GB 미만","Light"],AROUND_15GB:["15GB 안팎","Mid"],AROUND_71GB:["71GB 안팎","Heavy"],UNLIMITED:["무제한","Unlimited"]};
+const NET={SKT:["SKT망","skt"],KT:["KT망","kt"],LGU:["U+망","lgu"],UNKNOWN:["망 미상",""]};
+async function loadMarket(){
+  try{
+    const m=STATIC.market;
+    if(!m.available){$("mkt-status").innerHTML="수집 데이터 없음";return}
+    $("mkt-status").innerHTML=`최종 수집 <b>${m.last_snapshot}</b> · 누적 ${m.n_rows}건 · 주 1회 자동`;
+    $("tiers").innerHTML=Object.keys(TIER_KO).map(t=>{
+      const d=m.tiers[t],[ko,en]=TIER_KO[t];
+      if(!d.collected)return`<div class="tier gap">
+        <div class="orn">&#10087;</div>
+        <div class="g-t">◈ 정찰 부재</div>
+        <div class="g-s">${ko} 구간 미수집<br>다음 주간 수집에서 보강</div></div>`;
+      return`<div class="tier">
+        <div class="t-name">${ko}</div><div class="t-sub">${en} · ${d.n} offers</div>
+        <div class="t-min">${fmt(d.market_min_eff)}<em> 원</em></div>
+        <div class="t-cap">시장 최저 실효가 / 월 (24M)</div>
+        ${d.offers.slice(0,4).map(o=>`<div class="offer">
+          <span class="o-net ${(NET[o.network]||[])[1]||""}">${(NET[o.network]||["망 미상"])[0]}</span>
+          <span class="o-brand">${o.brand}</span>
+          <span class="o-spec">${o.plan_spec}</span>
+          ${o.promo_months?`<span class="o-promo">${fmt(o.promo_price)}원×${o.promo_months}M</span>`:`<span class="o-promo" style="color:var(--sage)">평생</span>`}
+          <span class="o-eff">${fmt(o.monthly_eff_24m)}</span>
+        </div>`).join("")}</div>`;
+    }).join("");
+    $("mkt-foot").innerHTML=`<span>COLLECTOR — ${m.collector}</span>
+      <span class="dates">SNAPSHOTS — ${m.snapshot_dates.map(d=>`<i>${d}</i>`).join(" · ")}</span>`;
+  }catch(e){$("mkt-status").textContent="시장 데이터 조회 실패"}
+}
+/* ── 플로팅 독: 뷰 전환 ── */
+const dockBtns=[...document.querySelectorAll(".dock button[data-view]")];
+function showView(i){
+  document.querySelectorAll(".view").forEach((v,k)=>v.classList.toggle("active",k===+i));
+  dockBtns.forEach(b=>b.classList.toggle("active",b.dataset.view===String(i)));
+  if(+i===1)drawEV();
+  if(+i===2)loadLedger();
+  if(+i===3)loadMarket();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+dockBtns.forEach(b=>b.onclick=()=>showView(b.dataset.view));
+
+let _rz;
+window.addEventListener("resize",()=>{clearTimeout(_rz);_rz=setTimeout(drawEV,180)});
+window.addEventListener("orientationchange",()=>setTimeout(drawEV,300));
+
+loadPolicy(); loadLedger(); loadMarket(); loadStats();
+</script>
+</body>
+</html>
