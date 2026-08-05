@@ -93,6 +93,57 @@ main{margin-top:34px}
 .dock button.active i{color:var(--gold)}
 .dock .sep{width:1px; background:var(--hair-soft); margin:6px 2px}
 @keyframes dockup{from{opacity:0; transform:translate(-50%,18px)}to{opacity:1; transform:translate(-50%,0)}}
+
+/* ── traffic-light signals ── */
+.sig-hero{display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:16px; margin:8px 0 28px}
+@media(max-width:800px){.sig-hero{grid-template-columns:1fr}}
+.sig-card{
+  background:var(--surface-2); border:1px solid var(--hair-soft);
+  padding:22px 20px 20px; position:relative; overflow:hidden;
+}
+.sig-card .sk{font-family:var(--mono); font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-3); margin-bottom:14px}
+.sig-card .slabel{font-size:15px; font-weight:600; color:var(--ink); margin-top:12px; letter-spacing:.02em}
+.sig-card .sdesc{font-size:12px; color:var(--ink-2); margin-top:6px; line-height:1.55}
+.sig-card .smeta{font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:14px}
+.tlight{display:flex; gap:10px; align-items:center}
+.tlight span{
+  width:22px; height:22px; border-radius:50%;
+  background:#1a2338; border:1px solid #2a354d;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+  transition:all .35s ease;
+}
+.tlight.green span:nth-child(1),
+.tlight.yellow span:nth-child(2),
+.tlight.red span:nth-child(3){transform:scale(1.12)}
+.tlight.green span:nth-child(1){background:#34d399; border-color:#6ee7b7; box-shadow:0 0 18px rgba(52,211,153,.45)}
+.tlight.yellow span:nth-child(2){background:#f5a54b; border-color:#fbbf24; box-shadow:0 0 18px rgba(245,165,75,.4)}
+.tlight.red span:nth-child(3){background:#ff6a4d; border-color:#ff8a70; box-shadow:0 0 18px rgba(255,106,77,.45)}
+.tlight.gray span{opacity:.45}
+.sig-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+@media(max-width:800px){.sig-grid{grid-template-columns:1fr}}
+.sig-table{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px}
+.sig-table th{
+  text-align:left; font-family:var(--mono); font-size:10px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ink-3); font-weight:500;
+  padding:8px 10px; border-bottom:1px solid var(--hair);
+}
+.sig-table td{padding:10px; border-bottom:1px solid var(--hair-soft); color:var(--ink-2); vertical-align:middle}
+.sig-table td.num{font-family:var(--mono); color:var(--ink); text-align:right}
+.sig-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  padding:3px 8px; border:1px solid var(--hair);
+}
+.sig-pill i{width:8px; height:8px; border-radius:50%; display:inline-block}
+.sig-pill.green{color:#34d399; border-color:rgba(52,211,153,.35)} .sig-pill.green i{background:#34d399}
+.sig-pill.yellow{color:#f5a54b; border-color:rgba(245,165,75,.35)} .sig-pill.yellow i{background:#f5a54b}
+.sig-pill.red{color:#ff6a4d; border-color:rgba(255,106,77,.35)} .sig-pill.red i{background:#ff6a4d}
+.sig-pill.gray{color:var(--ink-3)} .sig-pill.gray i{background:#5d6a82}
+.sig-note{
+  margin-top:22px; padding:14px 16px; border-left:2px solid var(--gold-dim);
+  font-size:12.5px; color:var(--ink-2); background:rgba(255,106,77,.04);
+}
+.sig-note b{color:var(--ink); font-weight:600}
 .panel{
   background:var(--surface); border:1px solid var(--hair-soft);
   padding:32px 36px 36px; position:relative;
@@ -664,9 +715,31 @@ body::before{animation:starDrift 240s linear infinite}
         <input type="number" class="numin" id="age" placeholder="—">
       </div>
       <div class="field">
-        <div class="label"><span>보유 포인트 (선택)</span></div>
+        <div class="label"><span>성별</span></div>
+        <div class="chips" id="gender"></div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="label"><span>가입 채널</span></div>
+      <div class="chips" id="sch"></div>
+    </div>
+    <div class="field">
+      <div class="label"><span>가입 시 통신사</span></div>
+      <div class="chips" id="tsign"></div>
+    </div>
+    <div class="duo">
+      <div class="field">
+        <div class="label"><span>가입 경과일 (선택)</span></div>
+        <input type="number" class="numin" id="sdays" placeholder="—">
+      </div>
+      <div class="field">
+        <div class="label"><span>보유 포인트 (로깅 전용)</span></div>
         <input type="number" class="numin" id="pbal" placeholder="—">
       </div>
+    </div>
+    <div class="field">
+      <div class="label"><span>제공 쿠폰 포인트 (실험·데모 — 쿠폰 피처 모델에서만 반영)</span></div>
+      <input type="number" class="numin" id="coupon" step="1000" min="0" placeholder="—">
     </div>
     <button class="cta" id="go">적정 금액 산출</button>
   </section>
@@ -794,6 +867,63 @@ body::before{animation:starDrift 240s linear infinite}
   </section>
 </div>
 
+<div class="view" id="v-signals">
+  <section class="panel wide">
+    <div class="numeral">SIG.</div>
+    <div class="chart-head">
+      <h2 style="margin-bottom:8px">신호등 대시보드 <small>Policy &amp; Market Traffic Lights</small></h2>
+      <div class="assume" id="sig-status">신호 계산 중…</div>
+    </div>
+
+    <div class="sig-hero" id="sig-hero">
+      <div class="sig-card">
+        <div class="sk">Overall</div>
+        <div class="tlight gray" id="sig-overall-tl"><span></span><span></span><span></span></div>
+        <div class="slabel" id="sig-overall-label">—</div>
+        <div class="sdesc" id="sig-overall-desc">채널 정책 격차 + 경쟁사 가격 온도를 합성한 종합 신호</div>
+        <div class="smeta" id="sig-overall-meta">as_of —</div>
+      </div>
+      <div class="sig-card">
+        <div class="sk">Channel Policy</div>
+        <div class="tlight gray" id="sig-ch-tl"><span></span><span></span><span></span></div>
+        <div class="slabel" id="sig-ch-label">—</div>
+        <div class="sdesc" id="sig-ch-desc">공식 vs 타채널 보너스팩 격차</div>
+        <div class="smeta" id="sig-ch-meta">—</div>
+      </div>
+      <div class="sig-card">
+        <div class="sk">Competitor Market</div>
+        <div class="tlight gray" id="sig-mk-tl"><span></span><span></span><span></span></div>
+        <div class="slabel" id="sig-mk-label">—</div>
+        <div class="sdesc" id="sig-mk-desc">평소 대비 시장 최저가 온도 (z-score)</div>
+        <div class="smeta" id="sig-mk-meta">—</div>
+      </div>
+    </div>
+
+    <div class="sig-grid">
+      <div>
+        <div class="ch-label" style="margin-bottom:4px">Channel · 요금제별 보너스 열위</div>
+        <table class="sig-table">
+          <thead><tr><th>요금제</th><th>공식</th><th>타채널 최고</th><th class="num">격차</th><th>신호</th></tr></thead>
+          <tbody id="sig-ch-body"><tr><td colspan="5">—</td></tr></tbody>
+        </table>
+      </div>
+      <div>
+        <div class="ch-label" style="margin-bottom:4px">Market · 사용량 구간 온도</div>
+        <table class="sig-table">
+          <thead><tr><th>구간</th><th class="num">오늘 최저</th><th class="num">평소 μ</th><th class="num">z</th><th>신호</th></tr></thead>
+          <tbody id="sig-mk-body"><tr><td colspan="5">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sig-note" id="sig-note">
+      <b>읽는 법.</b> 초록 = 여유 · 노랑 = 주의 · 빨강 = 경고.
+      채널 격차 양수 = 타채널이 보너스를 더 줌. 시장 z 음수 = 평소보다 싸진 경쟁 가격(포인트 보전 검토).
+      기준선은 <code>python -m model.src.signals train</code> 으로 재적합.
+    </div>
+  </section>
+</div>
+
 <div class="view" id="v4">
   <section class="panel wide">
     <div class="numeral">VI.</div>
@@ -806,36 +936,36 @@ body::before{animation:starDrift 240s linear infinite}
       <div class="flow">
         <div class="step"><div class="s-n">i.</div><div class="s-big">12,000</div><div class="s-t">원천 설문</div><div class="s-d">mock 표본 · 예시</div></div>
         <div class="step"><div class="s-n">ii.</div><div class="s-t">타임존 통일</div><div class="s-d">UTC/KST 혼재 보정<br>타임존 정규화(예시)</div></div>
-        <div class="step"><div class="s-n">iii.</div><div class="s-t">D+7 라벨</div><div class="s-d">제출 후 168h 내 개통<br>실험 주지표와 동일 정의</div></div>
+        <div class="step"><div class="s-n">iii.</div><div class="s-t">D+7 앱 라벨</div><div class="s-d">제출 후 168h 내 AIR_APP 개통<br>서빙 = 앱 채널 고정 조건</div></div>
         <div class="step"><div class="s-n">iv.</div><div class="s-t">예외 제외</div><div class="s-d">관측 미완료·역순 데이터<br>제외 (mock)</div></div>
         <div class="step"><div class="s-n">v.</div><div class="s-big">9,800</div><div class="s-t">학습 데이터</div><div class="s-d">시간분할 — 학습/홀드아웃<br>(미래 구간 평가)</div></div>
       </div>
-      <div class="note"><b>누수 차단.</b> 쿠폰등록·개통시도 등 설문 제출 이후에 생기는 원천 컬럼은 금지 목록으로 코드에 박제되어, 피처에 섞이면 예외가 발생하고 테스트가 실패한다. 예측 시점에 존재하지 않는 정보는 성능처럼 보여도 가짜다.</div>
+      <div class="note"><b>누수 차단.</b> 쿠폰등록·개통시도 등 설문 제출 이후에 생기는 원천 컬럼 23종은 금지 목록으로 코드에 박제되어, 피처에 섞이면 예외가 발생하고 테스트가 실패한다. 예측 시점에 존재하지 않는 정보는 성능처럼 보여도 가짜다.</div>
     </div>
 
     <div class="chapter">
       <div class="ch-label">Chapitre 02 · Le Modèle</div>
       <div class="ch-title">모델 아키텍처</div>
-      <div class="ch-desc">설문시점 피처 8종(통신사·통신비·데이터·약정잔여·제출시각 파생)으로 전환 확률을 빚는다. 후보를 같은 CV 링에 올려 경쟁시켰다.</div>
+      <div class="ch-desc">제출시점 피처 15종 — 설문 8종 + 유저 DB 조인 5종(나이·성별·가입채널·가입경과일·통신사변경) + 오퍼환경 2종(제출일의 채널 격차·앱 보너스팩, 정책 원장 조회)으로 앱 개통 확률을 빚는다. 후보를 같은 CV 링에 올려 경쟁시켰다.</div>
       <div class="vs">
-        <div><div class="v-t">로지스틱 회귀</div><div class="v-a">0.69</div><div class="v-s">CV AUC · Challenger</div></div>
-        <div class="win"><div class="v-t">HistGradientBoosting ◈</div><div class="v-a">0.71</div><div class="v-s">CV AUC · 채택 + Platt 캘리브레이션</div></div>
+        <div class="win"><div class="v-t">로지스틱 회귀 ◈</div><div class="v-a">0.771</div><div class="v-s">CV AUC · 채택 + Platt 캘리브레이션</div></div>
+        <div><div class="v-t">HistGradientBoosting</div><div class="v-a">0.767</div><div class="v-s">CV AUC · Challenger — 유저 피처 편입 후 역전됨</div></div>
         <div><div class="v-t">딥러닝 계열</div><div class="v-a">기각</div><div class="v-s">소표본 열세</div></div>
       </div>
       <div class="metrics" style="max-width:820px">
-        <div class="metric"><div class="k">Holdout AUC (미래 구간)</div><div class="v">0.71</div></div>
-        <div class="metric"><div class="k">상·하위 십분위 리프트</div><div class="v">5.0<em>×</em></div></div>
+        <div class="metric"><div class="k">Holdout AUC (미래 구간)</div><div class="v">0.691</div></div>
+        <div class="metric"><div class="k">상·하위 십분위 리프트</div><div class="v">10.0<em>×</em></div></div>
       </div>
       <div class="imp">
         <div class="ch-label" style="margin-bottom:8px">Permutation Importance · ΔAUC</div>
-        <div class="imp-row"><span class="l">약정 잔여월</span><span class="bar"><i style="--w:100%"></i></span><span class="v">+.09</span></div>
-        <div class="imp-row"><span class="l">제출 시각</span><span class="bar"><i style="--w:44%"></i></span><span class="v">+.05</span></div>
-        <div class="imp-row"><span class="l">월 통신비</span><span class="bar"><i style="--w:15%"></i></span><span class="v">+.02</span></div>
-        <div class="imp-row"><span class="l">통신사</span><span class="bar"><i style="--w:13%"></i></span><span class="v">+.015</span></div>
-        <div class="imp-row"><span class="l">요일</span><span class="bar"><i style="--w:8%"></i></span><span class="v">+.01</span></div>
-        <div class="imp-row"><span class="l">데이터 사용량</span><span class="bar"><i style="--w:3%"></i></span><span class="v">+.005</span></div>
+        <div class="imp-row"><span class="l">새벽 제출</span><span class="bar"><i style="--w:100%"></i></span><span class="v">+.041</span></div>
+        <div class="imp-row"><span class="l">나이 ★신규</span><span class="bar"><i style="--w:73%"></i></span><span class="v">+.030</span></div>
+        <div class="imp-row"><span class="l">가입 채널 ★신규</span><span class="bar"><i style="--w:51%"></i></span><span class="v">+.021</span></div>
+        <div class="imp-row"><span class="l">무약정 여부</span><span class="bar"><i style="--w:49%"></i></span><span class="v">+.020</span></div>
+        <div class="imp-row"><span class="l">성별 ★신규</span><span class="bar"><i style="--w:39%"></i></span><span class="v">+.016</span></div>
+        <div class="imp-row"><span class="l">통신사</span><span class="bar"><i style="--w:32%"></i></span><span class="v">+.013</span></div>
       </div>
-      <div class="note"><b>홀드아웃이 CV보다 낮은 이유.</b> 홀드아웃 기간의 분포 변화가 성능에 반영된다(예시) — 오퍼 정보가 피처에 없는 한 성능 상한이 존재하며, 노출 오퍼 로깅이 다음 병목이다.</div>
+      <div class="note"><b>지표 읽는 법.</b> 라벨을 앱 채널 개통으로 좁혀(양성 10.1%) 절대 AUC 는 전 채널 라벨 시절과 직접 비교할 수 없다. 유저 조인 피처가 CV +0.06을 끌어올렸고(신규 3종이 중요도 상위권), 홀드아웃 기간의 정책 급등 구간은 여전히 오퍼 환경 피처(정책 원장·경쟁가) 미편입이 상한 — 다음 병목이다.</div>
     </div>
 
     <div class="chapter">
@@ -844,13 +974,13 @@ body::before{animation:starDrift 240s linear infinite}
       <div class="pipeline">
         <div class="p-step"><div class="p-dot">1</div><div class="p-body">
           <div class="p-t">입력 <small>POST /recommend</small></div>
-          <div class="p-d">고객 프로파일(통신사·통신비·데이터·약정잔여). 나이·보유포인트·거주지는 v2 피처 편입 전까지 로깅만.</div></div></div>
+          <div class="p-d">고객 프로파일(통신사·통신비·데이터·약정잔여 + 나이·성별·가입채널·가입경과일·가입시통신사). 보유포인트·거주지는 로깅만.</div></div></div>
         <div class="p-step"><div class="p-dot">2</div><div class="p-body">
           <div class="p-t">피처 빌드 <small>features.py</small></div>
-          <div class="p-d">설문시점 8종 화이트리스트 — KST 시각·새벽 여부·요일 파생. 금지 목록 위반 시 즉시 예외.</div></div></div>
+          <div class="p-d">제출시점 15종 화이트리스트 — KST 시각 파생 + 유저 조인 + 오퍼환경(정책 원장 조회, 격차·앱 보너스). 금지 목록 23종 위반 시 즉시 예외.</div></div></div>
         <div class="p-step"><div class="p-dot">3</div><div class="p-body">
           <div class="p-t">1층 — 성향 모델 <small>model.joblib</small></div>
-          <div class="p-d">캘리브레이션된 전환 확률 P(전환|X) 산출. 상위 유저와 하위 유저의 전환율 격차가 크게 벌어진다(예시).</div></div></div>
+          <div class="p-d">캘리브레이션된 P(D+7 내 AIR_APP 개통 | X) 산출 — 서빙은 항상 앱 채널 고정 조건. 상위 10% 실측 23.4% vs 하위 2.1% (11×).</div></div></div>
         <div class="p-step"><div class="p-dot">4</div><div class="p-body">
           <div class="p-t">LTV 조회 <small>policy.json</small></div>
           <div class="p-d">사용량 구간 → 기대 LTV(월 체감가 × 18개월, 요금제 믹스 가중 — 예시값).</div></div></div>
@@ -864,7 +994,7 @@ body::before{animation:starDrift 240s linear infinite}
           <div class="p-t">폐루프 <small>decisions.jsonl → β → policy</small></div>
           <div class="p-d">결정 로그 × 개통 결과(D+7) 조인 → IPS 가중 추정으로 β 갱신 → 판정 보류가 유저별 최적 금액 모드로 자동 전환. 서빙이 곧 실험이다.</div></div></div>
       </div>
-      <div class="note" style="margin-top:4px">본 화면의 모든 지표는 mock 데이터 기반 예시입니다</div>
+      <div class="note" style="margin-top:4px">지표 기준: 모델 v2 (2026-08-04 학습, seed 42) · 라벨 D+7 AIR_APP 개통 · 피처 15종(설문+유저조인+오퍼환경) · 채널 격차는 일자별 정책 원장(<b>data/채널정책_원장.csv</b>, 실측 99.7% 일치) 기준 — 상세 근거는 <b>모델_설계_및_학습_계획.md</b>, <b>reports/</b></div>
     </div>
   </section>
 </div>
@@ -882,14 +1012,14 @@ body::before{animation:starDrift 240s linear infinite}
     <div class="kpis">
       <div class="kpi"><div class="v">24~30<em>만원</em></div><div class="k">고객 1명이 가입하면<br>우리가 얻는 가치(18개월)</div></div>
       <div class="kpi"><div class="v">18.2<em>%</em></div><div class="k">계산기 이용 고객의<br>현재 가입 전환율</div></div>
-      <div class="kpi"><div class="v">5<em>배</em></div><div class="k">시스템이 가려내는<br>유망-비유망 고객 격차</div></div>
+      <div class="kpi"><div class="v">10<em>배</em></div><div class="k">시스템이 가려내는<br>유망-비유망 고객 격차</div></div>
       <div class="kpi"><div class="v">10<em>주</em></div><div class="k">"얼마면 충분한지"<br>답을 얻는 데 필요한 기간</div></div>
     </div>
 
     <div class="ch-label" style="margin-bottom:14px">Pipeline · 시스템이 일하는 순서</div>
     <div class="bflow">
       <div class="bstep"><div class="bnum">1</div><div class="bt">고객이 계산기 이용</div><div class="bd">통신사·요금·사용량을<br>입력하며 관심을 표시</div></div>
-      <div class="bstep"><div class="bnum">2</div><div class="bt">가입 가능성 판독</div><div class="bd">과거 사례(mock)로 학습한<br>AI가 "이 고객이 넘어올 확률" 산출</div></div>
+      <div class="bstep"><div class="bnum">2</div><div class="bt">가입 가능성 판독</div><div class="bd">과거 사례(mock)로 학습한<br>AI가 "이 고객이 앱에서 개통할 확률" 산출</div></div>
       <div class="bstep"><div class="bnum">3</div><div class="bt">적정 금액 계산</div><div class="bd">고객 가치·경쟁사 최저가와<br>비교해 "필요한 만큼만" 산정</div></div>
       <div class="bstep"><div class="bnum">4</div><div class="bt">쿠폰 지급 + 기록</div><div class="bd">얼마를 제시했고 가입했는지<br>전 과정이 자동 기록</div></div>
       <div class="bstep"><div class="bnum">5</div><div class="bt">반응에서 학습</div><div class="bd">고객 반응이 다음 계산을<br>계속 더 정확하게 만듦</div></div>
@@ -900,7 +1030,7 @@ body::before{animation:starDrift 240s linear infinite}
     <div class="whys">
       <div class="why">
         <div class="wq">왜 고객마다 금액이 다른가?</div>
-        <div class="wa">백화점이 모든 고객에게 같은 쿠폰을 뿌리지 않는 것과 같습니다. <b>어차피 올 고객에게 큰 쿠폰은 낭비</b>이고, 망설이는 고객에게 작은 쿠폰은 효과가 없습니다. 우리 시스템은 이미 유망 고객과 비유망 고객을 큰 격차로 가려냅니다 — 같은 예산을 다르게 배분할 준비가 되어 있습니다.</div>
+        <div class="wa">백화점이 모든 고객에게 같은 쿠폰을 뿌리지 않는 것과 같습니다. <b>어차피 올 고객에게 큰 쿠폰은 낭비</b>이고, 망설이는 고객에게 작은 쿠폰은 효과가 없습니다. 우리 시스템은 이미 유망 고객과 비유망 고객을 10배 격차로 가려냅니다 — 같은 예산을 다르게 배분할 준비가 되어 있습니다.</div>
       </div>
       <div class="why">
         <div class="wq">왜 "판독"과 "금액 계산"을 나눴나?</div>
@@ -938,10 +1068,13 @@ body::before{animation:starDrift 240s linear infinite}
   <button data-view="3" data-tip="시장 정찰">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg>
   </button>
-  <button data-view="4" data-tip="방법론">
+  <button data-view="4" data-tip="신호등">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="20" rx="3"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg>
+  </button>
+  <button data-view="5" data-tip="방법론">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h7a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h7z"/></svg>
   </button>
-  <button data-view="5" data-tip="경영 브리핑">
+  <button data-view="6" data-tip="경영 브리핑">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18"/><path d="M5 4v11h14V4"/><path d="M12 15v2.5"/><path d="m8.5 21 3.5-3.5L15.5 21"/></svg>
   </button>
   <span class="sep"></span>
@@ -963,8 +1096,11 @@ const OPT={
   telco:[["LGU","LG U+"],["LGU_MVNO","LG 알뜰"],["KT","KT"],["KT_MVNO","KT 알뜰"],["SKT_MVNO","SKT 알뜰"]],
   fee:[["UNDER_TEN_THOUSAND_RANGE","1만 미만"],["TEN_THOUSAND_RANGE","1만원대"],["TWENTY_THOUSAND_RANGE","2만원대"],["THIRTY_THOUSAND_RANGE","3만원대"],["FORTY_THOUSAND_RANGE","4만원대"],["FIFTY_THOUSAND_RANGE","5만원대"]],
   usage:[["UNDER_7GB","7GB 미만"],["AROUND_15GB","15GB 안팎"],["AROUND_71GB","71GB 안팎"],["UNLIMITED","무제한"]],
+  gender:[["M","남"],["F","여"],["-","미상"]],
+  sch:[["AIR_APP","앱"],["TOSS","채널T"],["MOYO","채널M"],["KAKAO","채널K"],["COUPANG","채널C"],["AIR_WEB","웹"],["AIR_WEB_1","웹1"],["AIR_WEB_2","웹2"],["AIR_WEB_3","웹3"],["AIR_WEB_5","웹5"],["AIR_WEB_10","웹10"]],
+  tsign:[["UNKNOWN","미상"],["SKT","SKT"],["KT","KT"],["LGU","LG U+"],["KT_MVNO","KT 알뜰"],["LGU_MVNO","LG 알뜰"],["SKT_MVNO","SKT 알뜰"]],
 };
-const sel={telco:"LGU_MVNO",fee:"THIRTY_THOUSAND_RANGE",usage:"UNLIMITED"};
+const sel={telco:"LGU_MVNO",fee:"THIRTY_THOUSAND_RANGE",usage:"UNLIMITED",gender:"-",sch:"AIR_APP",tsign:"UNKNOWN"};
 for(const k of Object.keys(OPT)){
   const box=$(k);
   OPT[k].forEach(([v,label])=>{
@@ -976,14 +1112,14 @@ for(const k of Object.keys(OPT)){
 }
 $("cm").oninput=e=>$("cmv").textContent=e.target.value;
 const PRESETS={
-  hi:{telco:"LGU",fee:"FORTY_THOUSAND_RANGE",usage:"UNLIMITED",cm:0,age:34,pbal:4200},
-  mid:{telco:"LGU_MVNO",fee:"THIRTY_THOUSAND_RANGE",usage:"AROUND_71GB",cm:0,age:41,pbal:1500},
-  lo:{telco:"KT",fee:"FIFTY_THOUSAND_RANGE",usage:"UNDER_7GB",cm:12,age:52,pbal:0},
+  hi:{telco:"LGU",fee:"FORTY_THOUSAND_RANGE",usage:"UNLIMITED",cm:0,age:34,gender:"M",sch:"AIR_APP",tsign:"SKT",sdays:21,pbal:4200},
+  mid:{telco:"LGU_MVNO",fee:"THIRTY_THOUSAND_RANGE",usage:"AROUND_71GB",cm:0,age:41,gender:"F",sch:"AIR_APP",tsign:"LGU_MVNO",sdays:90,pbal:1500},
+  lo:{telco:"KT",fee:"FIFTY_THOUSAND_RANGE",usage:"UNDER_7GB",cm:12,age:52,gender:"-",sch:"AIR_WEB",tsign:"UNKNOWN",sdays:300,pbal:0},
 };
 document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{
   const p=PRESETS[b.dataset.preset];
-  for(const k of ["telco","fee","usage"]){sel[k]=p[k];[...$(k).children].forEach(x=>x.classList.toggle("on",x.dataset.v===p[k]))}
-  $("cm").value=p.cm;$("cmv").textContent=p.cm;$("age").value=p.age;$("pbal").value=p.pbal;
+  for(const k of ["telco","fee","usage","gender","sch","tsign"]){sel[k]=p[k];[...$(k).children].forEach(x=>x.classList.toggle("on",x.dataset.v===p[k]))}
+  $("cm").value=p.cm;$("cmv").textContent=p.cm;$("age").value=p.age;$("sdays").value=p.sdays;$("pbal").value=p.pbal;
   $("go").click();
 });
 
@@ -1043,7 +1179,7 @@ function renderExpNote(){
       const dur=w?`<br><b>예상 소요 ${w}주</b> (금액 ${arms}종, ${fmt(step)}P 단위) — 이 범위에서 "얼마면 충분한가"의 답이 나오기까지. `
                  +`기준가(${fmt(ref)}P)에서 <b>멀리 떨어진 금액</b>이 많을수록 빨라집니다 — 하한을 0P까지 낮추면 크게 단축됩니다.`:"";
       return (expStyle==="smart"
-      ?`<b>스마트 제시 작동 중</b> — 유저별로 "이 정도면 충분" 추정치(경쟁사 최저가 격차 × 보전개월 + 전환성향 보정)를 계산하고, 그 주변 ±${fmt(policy?policy.smart_jitter:4000)}P에서만 무작위로 지급합니다. 근거 있는 금액이면서 학습도 유지됩니다.`
+      ?`<b>스마트 제시 작동 중</b> — 유저별 "이 정도면 충분" 추정치를 계산해 그 주변 ±${fmt(policy?policy.smart_jitter:4000)}P에서만 무작위 지급합니다. 실측 β_gap(채널선택 모델·일자별 정책 원장 기반)이 있으면 목표 앱 점유율 역산, 없으면 경쟁 격차 × 보전개월 + 성향 보정 폴백. 근거 있는 금액이면서 학습도 유지됩니다.`
       :`<b>완전 무작위 작동 중</b> — 모든 산출이 ${fmt(lo)}~${fmt(hi)}P 범위 무작위입니다.`)+dur;
     })();
 }
@@ -1254,13 +1390,13 @@ async function loadMarket(){
   try{
     const m=STATIC.market;
     if(!m.available){$("mkt-status").innerHTML="수집 데이터 없음";return}
-    $("mkt-status").innerHTML=`최종 수집 <b>${m.last_snapshot}</b> · 누적 ${m.n_rows}건 · 주 1회 자동`;
+    $("mkt-status").innerHTML=`최종 수집 <b>${m.last_snapshot}</b> · 누적 ${m.n_rows}건 · 매일 자동`;
     $("tiers").innerHTML=Object.keys(TIER_KO).map(t=>{
       const d=m.tiers[t],[ko,en]=TIER_KO[t];
       if(!d.collected)return`<div class="tier gap">
         <div class="orn">&#10087;</div>
         <div class="g-t">◈ 정찰 부재</div>
-        <div class="g-s">${ko} 구간 미수집<br>다음 주간 수집에서 보강</div></div>`;
+        <div class="g-s">${ko} 구간 미수집<br>다음 일간 수집에서 보강</div></div>`;
       return`<div class="tier">
         <div class="t-name">${ko}</div><div class="t-sub">${en} · ${d.n} offers</div>
         <div class="t-min">${fmt(d.market_min_eff)}<em> 원</em></div>
@@ -1285,15 +1421,76 @@ function showView(i){
   if(+i===1)drawEV();
   if(+i===2)loadLedger();
   if(+i===3)loadMarket();
+  if(+i===4)loadSignals();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 dockBtns.forEach(b=>b.onclick=()=>showView(b.dataset.view));
+
+function setTraffic(el, light){
+  el.className="tlight "+(light||"gray");
+}
+function pill(light, text){
+  return `<span class="sig-pill ${light||"gray"}"><i></i>${text||light||"—"}</span>`;
+}
+async function loadSignals(){
+  try{
+    const s=STATIC.signals||{error:"STATIC.signals 없음 — export_onnx 재실행"};
+    if(s.error){$("sig-status").textContent="신호 계산 실패 — "+s.error;return}
+    $("sig-status").textContent=`as_of ${s.as_of} · model ${s.model&&s.model.version||"—"} · market days ${s.model&&s.model.n_market_days||"—"}`;
+    setTraffic($("sig-overall-tl"), s.overall_light);
+    $("sig-overall-label").textContent=s.overall_label||s.overall_light;
+    $("sig-overall-meta").textContent=`trained ${s.model&&s.model.trained_at?s.model.trained_at.slice(0,19):"—"}`;
+
+    const ch=s.channel||{};
+    setTraffic($("sig-ch-tl"), ch.overall_light||"gray");
+    $("sig-ch-label").textContent=ch.available?(ch.overall_light==="green"?"채널 여유":ch.overall_light==="yellow"?"소폭 열위":"타채널 열위"):"원장 없음";
+    $("sig-ch-desc").textContent=ch.summary||"공식 vs 타채널 보너스팩";
+    $("sig-ch-meta").textContent=ch.period?`정책 ${ch.period.from} ~ ${ch.period.to} · 평균 격차 ${fmt(Math.round(ch.mean_gap||0))}원`:"—";
+    const chBody=$("sig-ch-body");
+    if(ch.by_plan&&ch.by_plan.length){
+      chBody.innerHTML=ch.by_plan.map(r=>`<tr>
+        <td>${r.plan}</td>
+        <td class="num">${fmt(r.our_bonus)}</td>
+        <td class="num">${r.best_other_code} ${fmt(r.best_other_bonus)}</td>
+        <td class="num">${r.gap>0?"+":""}${fmt(r.gap)}</td>
+        <td>${pill(r.light,r.label)}</td>
+      </tr>`).join("");
+    }else chBody.innerHTML=`<tr><td colspan="5">${ch.reason||"데이터 없음"}</td></tr>`;
+
+    const mk=s.market||{};
+    setTraffic($("sig-mk-tl"), mk.overall_light||"gray");
+    $("sig-mk-label").textContent=mk.available?(mk.summary||mk.overall_light):"스냅샷 없음";
+    $("sig-mk-desc").textContent="평소 대비 시장 최저가 (z&lt;0 이면 쌈 → 경쟁 압박)";
+    $("sig-mk-meta").textContent=mk.available?`z=${mk.overall_z} · 스냅샷 ${mk.n_snapshot_days||0}일`:"—";
+    const mkBody=$("sig-mk-body");
+    if(mk.by_tier&&mk.by_tier.length){
+      mkBody.innerHTML=mk.by_tier.map(r=>{
+        if(r.light==="gray")return `<tr><td>${r.label||r.usage_tier}</td><td colspan="3">${r.reason||"—"}</td><td>${pill("gray","—")}</td></tr>`;
+        const d1=r.delta_1d==null?"—":((r.delta_1d>0?"+":"")+fmt(r.delta_1d));
+        return `<tr>
+          <td>${r.label}</td>
+          <td class="num">${fmt(r.market_min)}</td>
+          <td class="num">${fmt(Math.round(r.baseline_mu))}</td>
+          <td class="num">${r.z>0?"+":""}${r.z}<br><span style="color:var(--ink-3);font-size:10px">Δ1d ${d1}</span></td>
+          <td>${pill(r.light,r.label_ko)}</td>
+        </tr>`;
+      }).join("");
+    }else mkBody.innerHTML=`<tr><td colspan="5">${mk.reason||"데이터 없음"}</td></tr>`;
+
+    $("sig-note").innerHTML=`<b>읽는 법.</b> 초록=여유 · 노랑=주의 · 빨강=경고.
+      채널 격차 양수=타채널이 보너스를 더 줌. 시장 z 음수=평소보다 싼 경쟁가(포인트 보전 검토).
+      재적합: <code>python -m model.src.signals train</code>
+      · ${s.howto?s.howto.channel:""} / ${s.howto?s.howto.market:""}`;
+  }catch(e){
+    $("sig-status").textContent="신호 API 조회 실패 — 서버 기동 여부를 확인하세요";
+  }
+}
 
 let _rz;
 window.addEventListener("resize",()=>{clearTimeout(_rz);_rz=setTimeout(drawEV,180)});
 window.addEventListener("orientationchange",()=>setTimeout(drawEV,300));
 
-loadPolicy(); loadLedger(); loadMarket(); loadStats();
+loadPolicy(); loadLedger(); loadMarket(); loadStats(); loadSignals();
 </script>
 </body>
 </html>
